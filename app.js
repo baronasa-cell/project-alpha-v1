@@ -791,9 +791,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             errorMsg.style.display = 'none';
 
             try {
-                const hash = await hashPassword(password);
-                // 実際に通信して確認するために getInitData を呼んでみる
-                const bodyData = { action: 'getInitData', key: hash, scope: 'check' };
+                // バックエンドでハッシュ化を行うため、ここでは生のパスワードを送信
+                const bodyData = { action: 'getInitData', key: password, scope: 'check' };
                 const response = await fetch(GAS_URL, {
                     method: 'POST',
                     body: JSON.stringify(bodyData)
@@ -803,9 +802,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 if (result.status === 'success') {
                     // 認証成功
-                    currentAuthKey = hash;
-                    localStorage.setItem('inventory_auth_key', hash);
+                    currentAuthKey = password;
+                    localStorage.setItem('inventory_auth_key', password);
                     document.getElementById('login-modal').style.display = 'none';
+                    
+                    // システムコンテナを表示（重要：ブランク画面回避）
+                    const appContainer = document.querySelector('.app-container');
+                    if (appContainer) {
+                        appContainer.style.display = 'flex';
+                    }
+
                     // システム初期化を再開
                     initSystem('all');
                 } else {

@@ -687,7 +687,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return { status: 'error', message: 'Mock API not found' };
         }
 
-        const bodyData = Object.assign({ action: action, authKey: currentAuthKey }, payload);
+        const bodyData = Object.assign({ action: action, key: currentAuthKey }, payload);
 
         // GAS本番環境 (google.script.run が存在する場合)
         if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -782,7 +782,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const hash = await hashPassword(password);
                 // 実際に通信して確認するために getInitData を呼んでみる
-                const bodyData = { action: 'getInitData', authKey: hash, scope: 'check' };
+                const bodyData = { action: 'getInitData', key: hash, scope: 'check' };
                 const response = await fetch(GAS_URL, {
                     method: 'POST',
                     body: JSON.stringify(bodyData)

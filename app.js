@@ -140,14 +140,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 1. まずキャッシュからマスタを読み込んでUIを構築
         loadMastersFromCache();
 
-        // 2. データをサーバーから取得して検証
-        await initSystem('all');
+        // 2. 必須データ（在庫・ホーム用）を最優先で取得
+        console.time('Essential Load');
+        await initSystem('essential');
+        console.timeEnd('Essential Load');
 
-        // 認証とデータ取得が成功したら、メインUIを表示
+        // 3. 必須データが揃ったら、即座にメインUIを表示
         const appContainer = document.querySelector('.app-container');
         if (appContainer) {
-            appContainer.style.display = 'flex'; // style.cssの定義に合わせる
+            appContainer.style.display = 'flex';
         }
+        if (typeof showToast === 'function') showToast('システムを起動しました', 'success');
+
+        // 4. 残りの詳細履歴データをバックグラウンドで非同期に取得
+        initSystem('all').then(() => {
+            console.log("Background data load completed.");
+            if (typeof showToast === 'function') showToast('詳細データの同期が完了しました', 'success');
+        }).catch(err => {
+            console.warn("Background load failed:", err);
+        });
 
         // ---- 3. Image Feature Initializations ----
         setupImagePreviewListeners();

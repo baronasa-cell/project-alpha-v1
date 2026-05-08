@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ---- API Configuration ----
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzexidaVzlRQ1_StDZo6Oo_oOt9TtX33Nk2sPwbo-oDzuRW6_Tbt2_zQxlxv-Ctr4jZuA/exec';
-    const AUTH_KEY = 'inventory-api-auth-8k2p9m';
+    let currentAuthKey = localStorage.getItem('inventory_auth_key') || '';
     let useMock = false;
 
     // Global state
@@ -124,17 +124,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
         // ---- 1. Event Listener Registrations (Essential UI) ----
-        // This part must run even if API fails
         setupNavigation();
         setupToggleLogics();
         setupSettingsListeners();
 
         // ---- 2. System Initialization (Data Fetching) ----
-        // 1. まずキャッシュからマスタを読み込んでUIを構築（爆速起動用）
+        // 認証チェック (GAS環境以外の場合)
+        if (typeof google === 'undefined' && !currentAuthKey) {
+            setupLoginHandlers();
+            showLoginModal();
+            return; // ログイン完了まで中断
+        }
+        setupLoginHandlers(); // リトライ用などに常にセットアップ
+
+        // 1. まずキャッシュからマスタを読み込んでUIを構築
         loadMastersFromCache();
 
-        // 2. データを一括取得して表示 (バッジ表示のために最初から全履歴を取得)
+        // 2. データをサーバーから取得して検証
         await initSystem('all');
+
+        // 認証とデータ取得が成功したら、メインUIを表示
+        const appContainer = document.querySelector('.app-container');
+        if (appContainer) {
+            appContainer.style.display = 'flex'; // style.cssの定義に合わせる
+        }
 
         // ---- 3. Image Feature Initializations ----
         setupImagePreviewListeners();
@@ -145,8 +158,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log("System initialization completed successfully.");
     } catch (error) {
         console.error("Critical System Error:", error);
-        alert("システムの起動中に致命的なエラーが発生しました。ブラウザのコンソール（F12）で詳細を確認してください。\n\nエラー内容: " + error.message);
-        // エラーが起きてもナビゲーションだけは動くように試みる
+        
+        // 認証エラー(401)の場合はアラートを出さずhandleUnauthorizedに任せる
+        if (error.message.includes("Unauthorized") || error.message.includes("401")) {
+            handleUnauthorized();
+        } else {
+            alert("システムの起動中に致命的なエラーが発生しました。\n\nエラー内容: " + error.message);
+        }
+        
+        // エラー時はコンテナを隠したままにする
+        const appContainer = document.querySelector('.app-container');
+        if (appContainer) appContainer.style.display = 'none';
+        
         setupNavigation();
     }
 
@@ -664,7 +687,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return { status: 'error', message: 'Mock API not found' };
         }
 
-        const bodyData = Object.assign({ action: action, authKey: AUTH_KEY }, payload);
+        const bodyData = Object.assign({ action: action, authKey: currentAuthKey }, payload);
 
         // GAS本番環境 (google.script.run が存在する場合)
         if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -672,6 +695,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 google.script.run
                     .withSuccessHandler(res => {
                         if (!res) reject(new Error("Server returned null response"));
+                        else if (res.status === 'error' && res.message.includes('Unauthorized')) {
+                            handleUnauthorized();
+                            reject(new Error(res.message));
+                        }
                         else resolve(res);
                     })
                     .withFailureHandler(err => reject(new Error(err.message || "Server connection failed")))
@@ -680,13 +707,115 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // ローカル環境 or フォールバック (fetch を使用)
-        const response = await fetch(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify(bodyData)
-        });
+        try {
+            const response = await fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify(bodyData)
+            });
 
-        if (!response.ok) throw new Error("Network response was not ok: " + response.status);
-        return await response.json();
+            if (!response.ok) {
+                if (response.status === 401) {
+                    handleUnauthorized();
+                }
+                throw new Error("Network response was not ok: " + response.status);
+            }
+            
+            const result = await response.json();
+            if (result.status === 'error' && result.message.includes('Unauthorized')) {
+                handleUnauthorized();
+            }
+            return result;
+        } catch (error) {
+            console.error("Fetch Error:", error);
+            throw error;
+        }
+    }
+
+    /**
+     * 認証エラー時の処理
+     */
+    function handleUnauthorized() {
+        localStorage.removeItem('inventory_auth_key');
+        currentAuthKey = '';
+        showLoginModal();
+    }
+
+    /**
+     * パスワードをハッシュ化 (SHA-256)
+     */
+    async function hashPassword(password) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hash = await crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    /**
+     * ログインモーダルの表示
+     */
+    function showLoginModal() {
+        const modal = document.getElementById('login-modal');
+        if (modal) {
+            modal.style.display = 'block';
+            document.getElementById('login-password').focus();
+        }
+    }
+
+    /**
+     * ログイン関連のイベントハンドラ設定
+     */
+    function setupLoginHandlers() {
+        const submitBtn = document.getElementById('login-submit-btn');
+        const passwordInput = document.getElementById('login-password');
+        const errorMsg = document.getElementById('login-error');
+
+        if (!submitBtn || !passwordInput) return;
+
+        const handleLogin = async () => {
+            const password = passwordInput.value;
+            if (!password) return;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '認証中...';
+            errorMsg.style.display = 'none';
+
+            try {
+                const hash = await hashPassword(password);
+                // 実際に通信して確認するために getInitData を呼んでみる
+                const bodyData = { action: 'getInitData', authKey: hash, scope: 'check' };
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(bodyData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    // 認証成功
+                    currentAuthKey = hash;
+                    localStorage.setItem('inventory_auth_key', hash);
+                    document.getElementById('login-modal').style.display = 'none';
+                    // システム初期化を再開
+                    initSystem('all');
+                } else {
+                    errorMsg.style.display = 'block';
+                }
+            } catch (e) {
+                console.error("Login error:", e);
+                errorMsg.textContent = '通信エラーが発生しました';
+                errorMsg.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'ログイン';
+            }
+        };
+
+        if (submitBtn) submitBtn.onclick = handleLogin;
+        if (passwordInput) {
+            passwordInput.onkeypress = (e) => {
+                if (e.key === 'Enter') handleLogin();
+            };
+        }
     }
 
     function setupNavigation() {

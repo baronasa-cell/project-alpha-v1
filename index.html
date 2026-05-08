@@ -10,7 +10,17 @@
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 <body>
-    <div class="app-container">
+    <!-- ログインモーダル (GitHub Pages用) -->
+    <div id="login-modal" class="modal" style="display: none; z-index: 9999; background: rgba(0,0,0,0.8);">
+        <div class="modal-content" style="max-width: 400px; margin: 15% auto; text-align: center;">
+            <h2 style="margin-bottom: 20px;">🔐 認証</h2>
+            <p style="margin-bottom: 20px; font-size: 0.9rem; color: #666;">パスワードを入力してください</p>
+            <input type="password" id="login-password" class="search-input" placeholder="パスワード" style="width: 100%; margin-bottom: 20px; padding: 12px;">
+            <div id="login-error" style="color: #e74c3c; margin-bottom: 15px; display: none; font-size: 0.85rem;">パスワードが正しくありません</div>
+            <button id="login-submit-btn" class="primary-btn" style="width: 100%;">ログイン</button>
+        </div>
+    </div>
+    <div class="app-container" style="display: none;">
         <!-- Header -->
         <header class="glass-header">
             <div class="header-main">

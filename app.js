@@ -816,6 +816,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // システム初期化を再開
                     initSystem('all');
                 } else {
+                    errorMsg.textContent = result.message || 'パスワードが正しくありません';
                     errorMsg.style.display = 'block';
                 }
             } catch (e) {

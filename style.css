@@ -737,9 +737,9 @@ input:checked + .slider:before {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px; /* gapを少し詰める */
+    gap: 12px;
     background: rgba(0,0,0,0.02);
-    padding: 8px 4px; /* 横パディングを極小化 */
+    padding: 8px 12px;
     border-radius: 10px;
 }
 
@@ -1815,9 +1815,9 @@ input:checked + .slider:before {
 
 
 .product-thumb-container {
-    width: 54px; /* 36px縺九ｉ諡｡螟ｧ */
-    height: 54px; /* 36px縺九ｉ諡｡螟ｧ */
-    border-radius: 8px;
+    width: 80px; /* さらに拡大 */
+    height: 80px; /* さらに拡大 */
+    border-radius: 12px;
     background: #e5e7eb;
     margin-right: 12px;
     display: flex;
@@ -1836,7 +1836,7 @@ input:checked + .slider:before {
 }
 
 .product-thumb-container ion-icon {
-    font-size: 28px; /* 20px縺九ｉ諡｡螟ｧ */
+    font-size: 40px; /* さらに拡大 */
     color: var(--text-muted);
 }
 
@@ -3280,6 +3280,20 @@ th.sticky-col {
         padding: 2px 16px 2px 4px !important;
         font-size: 11px !important;
         height: 28px !important;
+    }
+
+    /* 在庫カード内の表示位置調整 */
+    .card-controls {
+        padding: 8px 4px !important;
+        gap: 6px !important;
+    }
+    .card-controls .control-group:first-child {
+        padding-left: 4px !important; /* ラベルは元の位置に寄せる */
+    }
+    .control-value {
+        padding-left: 14px !important; /* 数値だけを右にインデントして見やすくする */
+        font-size: 22px !important; /* 数値を大きく目立たせる */
+        font-weight: 800 !important;
     }
 
     /* 月次明細の固定列幅調整 */

@@ -126,6 +126,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupSettingsListeners();
 
         // ---- 2. System Initialization (Data Fetching) ----
+        
         // 認証チェック (GAS環境以外の場合)
         if (typeof google === 'undefined' && !currentAuthKey) {
             setupLoginHandlers();

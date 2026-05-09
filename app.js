@@ -695,6 +695,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const bodyData = Object.assign({ action: action, key: currentAuthKey }, payload);
+        
+        if (!currentAuthKey && action !== 'getInitData') {
+            console.warn(`[fetchAPI] Warning: No auth key for action: ${action}`);
+        }
 
         // GAS本番環境 (google.script.run が存在する場合)
         if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -729,6 +733,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const result = await response.json();
             if (result.status === 'error' && result.message.includes('Unauthorized')) {
+                console.error(`[fetchAPI] Unauthorized error for action: ${action}`, result);
                 handleUnauthorized();
             }
             return result;

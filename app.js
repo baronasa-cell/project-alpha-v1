@@ -124,6 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupNavigation();
         setupToggleLogics();
         setupSettingsListeners();
+        setupScannerListeners(); // スキャナーはデータロードを待たずに即座に有効化
 
         // ---- 2. System Initialization (Data Fetching) ----
         // 認証チェック (GAS環境以外の場合)
@@ -159,7 +160,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupImagePreviewListeners();
         setupStockUpdateListeners();
         setupStockFilters();
-        setupScannerListeners();
 
         console.log("System initialization completed successfully.");
     } catch (error) {
@@ -2066,6 +2066,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     function startScanner() {
         const overlay = document.getElementById('scanner-overlay');
         overlay.style.display = 'flex';
+        
+        if (typeof showToast === 'function') showToast('カメラを起動しています...', 'info');
 
         if (!html5QrCode) {
             html5QrCode = new Html5Qrcode("reader");
@@ -2074,9 +2076,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
         html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+            .then(() => {
+                if (typeof showToast === 'function') showToast('スキャナーが起動しました', 'success');
+            })
             .catch(err => {
                 console.error("Scanner start error:", err);
-                alert("カメラの起動に失敗しました。カメラの使用を許可してください。");
+                const errorName = err.name || "";
+                let msg = "カメラの起動に失敗しました。";
+                if (errorName === "NotAllowedError") msg += "\nカメラの使用許可を確認してください。";
+                else if (errorName === "NotFoundError") msg += "\nカメラが見つかりません。";
+                else msg += "\n詳細: " + err;
+                
+                alert(msg);
                 overlay.style.display = 'none';
             });
     }

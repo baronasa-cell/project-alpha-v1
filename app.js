@@ -1186,9 +1186,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const filtered = allStockProducts.filter(p => {
             const name = (p['品名'] || "").toLowerCase();
             const category = (p['カテゴリ'] || "").toLowerCase();
-            const id = (p['商品ID'] || "").toLowerCase();
-            const barcode = (p['QR/バーコード'] || "").toLowerCase();
-            const location = (p['保管場所'] || "").toLowerCase();
+            
+            // マスタからJANコードとIDを補完して検索対象にする
+            const itemInMaster = (currentMasters['M_商品'] || []).find(m => m['品名'] === p['品名']);
+            const id = ( (itemInMaster && itemInMaster['商品ID']) || p['商品ID'] || "").toLowerCase();
+            const barcode = ( (itemInMaster && itemInMaster['QR/バーコード']) || p['QR/バーコード'] || "").toLowerCase();
+            const location = (p['保管場所'] || (itemInMaster && itemInMaster['保管場所']) || "").toLowerCase();
+            
             const useFlag = parseInt(p['使用FLG']) !== 0;
             const threshold = parseFloat(p['閾値']) || 0;
             const stock = parseFloat(p['現在庫数']) || 0;
@@ -1737,9 +1741,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const itemInMaster = (currentMasters['M_商品'] || []).find(m => m['品名'] === itemName);
             const imageUrl = itemInMaster ? itemInMaster['画像URL'] : null;
-            const itemID = row['商品ID'] || '';
-            const location = row['保管場所'] || '';
-            const barcode = row['QR/バーコード'] || '';
+            const itemID = (itemInMaster && itemInMaster['商品ID']) || row['商品ID'] || '';
+            const location = row['保管場所'] || (itemInMaster && itemInMaster['保管場所']) || '';
+            const barcode = (itemInMaster && itemInMaster['QR/バーコード']) || row['QR/バーコード'] || '';
 
             card.setAttribute('data-item-name', itemName);
             card.setAttribute('data-item-id', itemID);
@@ -2112,41 +2116,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (searchInput) {
                 searchInput.value = loc;
                 searchInput.dispatchEvent(new Event('input')); // 検索実行
+                
+                // 在庫タブを表示
+                const invTabBtn = document.querySelector('.nav-item[data-tab="inventory"]');
+                if (invTabBtn) invTabBtn.click();
             }
             return;
         }
 
-        // 2. 商品ID、品名、またはバーコードでの照合
-        const cards = Array.from(document.querySelectorAll('.stock-item-card'));
-        const matches = cards.filter(card => {
-            const id = card.getAttribute('data-item-id');
-            const name = card.getAttribute('data-item-name');
-            const bc = card.getAttribute('data-barcode');
-            return id === decodedText || bc === decodedText || name === decodedText;
-        });
+        // 2. JANコードまたは商品IDを検索窓に入力して「在庫タブ」を表示
+        const searchInput = document.getElementById('stock-search-input');
+        if (searchInput) {
+            // 在庫タブに切り替え
+            const invTabBtn = document.querySelector('.nav-item[data-tab="inventory"]');
+            if (invTabBtn) invTabBtn.click();
 
-        if (matches.length === 1) {
-            // 一意に決まる場合：スクロール、ハイライト、入力フォーカス
-            const targetCard = matches[0];
-            targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            targetCard.classList.add('scan-highlight');
-            setTimeout(() => targetCard.classList.remove('scan-highlight'), 1500);
+            // 検索窓に値をセット
+            searchInput.value = decodedText;
+            searchInput.dispatchEvent(new Event('input')); // 検索実行
 
-            const input = targetCard.querySelector('.stepper-input');
-            if (input) {
-                input.focus();
-                input.select();
-            }
-        } else if (matches.length > 1) {
-            // 重複する場合（同一JANコードなど）：一覧をその値で絞り込む
-            showToast(`${matches.length}件の商品がヒットしました。絞り込み表示します。`);
-            const searchInput = document.getElementById('stock-search-input');
-            if (searchInput) {
-                searchInput.value = decodedText;
-                searchInput.dispatchEvent(new Event('input')); // 検索実行
-            }
-        } else {
-            alert(`スキャン結果: "${decodedText}" に一致する商品は見つかりませんでした。`);
+            if (typeof showToast === 'function') showToast(`スキャン結果: ${decodedText} で検索しました`, 'success');
         }
     }
 

@@ -1,6 +1,9 @@
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("System initialization started... (v2.2-QR-LayoutFixed)");
     
+    // 起動確認用のトーストを表示（デバッグ用：後で消せます）
+    if (typeof showToast === 'function') showToast('システムを起動しています...', 'success');
+
     // ---- API Configuration ----
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzexidaVzlRQ1_StDZo6Oo_oOt9TtX33Nk2sPwbo-oDzuRW6_Tbt2_zQxlxv-Ctr4jZuA/exec';
     let currentAuthKey = localStorage.getItem('inventory_auth_key') || '';
@@ -126,7 +129,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupSettingsListeners();
 
         // ---- 2. System Initialization (Data Fetching) ----
-        
         // 認証チェック (GAS環境以外の場合)
         if (typeof google === 'undefined' && !currentAuthKey) {
             setupLoginHandlers();
@@ -134,6 +136,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             return; // ログイン完了まで中断
         }
         setupLoginHandlers(); // リトライ用などに常にセットアップ
+
+        // 認証済みの場合、即座にコンテナを表示 (読み込み中アニメーションを表示させるため)
+        const appContainer = document.querySelector('.app-container');
+        if (appContainer) {
+            appContainer.style.display = 'flex';
+        }
 
         // 1. まずキャッシュからマスタを読み込んでUIを構築
         loadMastersFromCache();
@@ -143,16 +151,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (typeof showToast === 'function') showToast('システムを起動しています...', 'success');
         await initSystem('essential');
         console.timeEnd('Essential Load');
-
-        // 3. 必須データが揃ったら、即座にメインUIを表示
-        const appContainer = document.querySelector('.app-container');
-        if (appContainer) {
-            appContainer.style.display = 'flex';
-        }
+        if (typeof showToast === 'function') showToast('システムを起動しました', 'success');
 
         // 4. 残りの詳細履歴データをバックグラウンドで非同期に取得
         initSystem('all').then(() => {
             console.log("Background data load completed.");
+            if (typeof showToast === 'function') showToast('詳細データの同期が完了しました', 'success');
         }).catch(err => {
             console.warn("Background load failed:", err);
         });
@@ -696,10 +700,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const bodyData = Object.assign({ action: action, key: currentAuthKey }, payload);
-        
-        if (!currentAuthKey && action !== 'getInitData') {
-            console.warn(`[fetchAPI] Warning: No auth key for action: ${action}`);
-        }
 
         // GAS本番環境 (google.script.run が存在する場合)
         if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -734,7 +734,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const result = await response.json();
             if (result.status === 'error' && result.message.includes('Unauthorized')) {
-                console.error(`[fetchAPI] Unauthorized error for action: ${action}`, result);
                 handleUnauthorized();
             }
             return result;
@@ -815,7 +814,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     // システム初期化を再開
-                    if (typeof showToast === 'function') showToast('システムを起動しています...', 'success');
                     initSystem('all');
                 } else {
                     errorMsg.style.display = 'block';
@@ -913,6 +911,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 initSystem().then(() => {
                     if (icon) icon.style.animation = '';
                     setLoading(false);
+                    showToast('同期が完了しました');
                 }).catch(e => {
                     if (icon) icon.style.animation = '';
                     setLoading(false);

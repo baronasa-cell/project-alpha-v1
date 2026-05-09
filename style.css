@@ -2784,7 +2784,7 @@ input:checked + .slider:before {
 
 /* --- Inventory Alert Section Styles --- */
 .alert-section {
-    margin-bottom: 4px;
+    margin-bottom: 24px;
 }
 
 .alert-heading {
@@ -3621,7 +3621,7 @@ input:checked + .slider:before {
     border: none;
     padding: 8px 16px;
     border-radius: 8px;
-    display: flex;
+    display: none !important; /* GASのカメラ制限により一時非表示 */
     align-items: center;
     gap: 6px;
     font-weight: 600;
@@ -3632,7 +3632,7 @@ input:checked + .slider:before {
 }
 
 #stock-scan-btn-top {
-    display: block;
+    display: none !important; /* GASのカメラ制限により一時非表示 */
 }
 
 .btn-scan-stocktake:active {

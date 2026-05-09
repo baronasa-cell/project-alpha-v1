@@ -29,86 +29,111 @@ document.addEventListener('DOMContentLoaded', async () => {
         'M_商品': {
             key: '品名',
             fields: [
-                { name: '商品ID', type: 'text', visible: true, editable: false }, // 自動採番
-                { name: '表示順', type: 'number', visible: true, editable: true },
-                { name: '品名', type: 'text', visible: true, editable: false }, // 編集時はReadOnly
-                { name: 'カテゴリ', type: 'select', visible: true, editable: true, options: ['パーツ', '単体商品', '商品', '経費', '製造'] },
-                { name: '説明', type: 'textarea', visible: true, editable: true },
-                { name: '使用FLG', type: 'switch', visible: true, editable: true },
-                { name: '画像URL', visible: false },
-                { name: '保管場所', type: 'text', visible: true, editable: true },
-                { name: 'QR/バーコード', type: 'text', visible: true, editable: true } // I列
+                { name: '商品ID', type: 'text', visible: true, editable: false, required: true },
+                { name: '表示順', type: 'number', visible: true, editable: true, required: true },
+                { name: '品名', type: 'text', visible: true, editable: false, required: true },
+                { name: 'カテゴリ', type: 'select', visible: true, editable: true, options: ['パーツ', '単体商品', '商品', '経費', '製造'], required: true },
+                { name: '説明', type: 'textarea', visible: true, editable: true, required: false },
+                { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true },
+                { name: '画像URL', visible: false, required: false },
+                { name: '保管場所', type: 'text', visible: true, editable: true, required: false },
+                { name: 'QR/バーコード', type: 'text', visible: true, editable: true, required: false }
             ]
         },
         'M_仕入先': {
             key: '仕入先',
             fields: [
-                { name: '表示順', type: 'number', visible: true, editable: true },
-                { name: '仕入先', type: 'text', visible: true, editable: false },
-                { name: '用途区分', type: 'select', visible: true, editable: true, options: [{v:1, l:'1:仕入のみ'}, {v:2, l:'2:経費のみ'}, {v:3, l:'3:両方'}] },
-                { name: '説明', type: 'textarea', visible: true, editable: true },
-                { name: '使用FLG', type: 'switch', visible: true, editable: true }
+                { name: '表示順', type: 'number', visible: true, editable: true, required: true },
+                { name: '仕入先', type: 'text', visible: true, editable: false, required: true },
+                { name: '用途区分', type: 'select', visible: true, editable: true, options: [{v:1, l:'1:仕入のみ'}, {v:2, l:'2:経費のみ'}, {v:3, l:'3:両方'}], required: true },
+                { name: '説明', type: 'textarea', visible: true, editable: true, required: false },
+                { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true }
             ]
         },
         'M_売先': {
             key: '売先',
             fields: [
-                { name: '表示順', type: 'number', visible: true, editable: true },
-                { name: '売先', type: 'text', visible: true, editable: false },
-                { name: '手数料率', type: 'number', visible: true, editable: true },
-                { name: '使用FLG', type: 'switch', visible: true, editable: true }
+                { name: '表示順', type: 'number', visible: true, editable: true, required: true },
+                { name: '売先', type: 'text', visible: true, editable: false, required: true },
+                { name: '手数料率', type: 'number', visible: true, editable: true, required: true },
+                { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true }
             ]
         },
         'M_発送': {
             key: '発送方法',
             fields: [
-                { name: '表示順', type: 'number', visible: true, editable: true },
-                { name: '発送方法', type: 'text', visible: true, editable: false },
-                { name: '送料', type: 'number', visible: true, editable: true },
-                { name: '使用FLG', type: 'switch', visible: true, editable: true }
+                { name: '表示順', type: 'number', visible: true, editable: true, required: true },
+                { name: '発送方法', type: 'text', visible: true, editable: false, required: true },
+                { name: '送料', type: 'number', visible: true, editable: true, required: true },
+                { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true }
             ]
         },
         'M_BOM': {
-            key: '品名', // 実際は複合キーだがバックエンドで対応
+            key: '品名',
             fields: [
-                { name: '品名', type: 'select', visible: true, editable: false, refMaster: 'M_商品', filter: (r)=>r['カテゴリ']==='商品' },
-                { name: '部品', type: 'select', visible: true, editable: false, refMaster: 'M_商品', filter: (r)=>['パーツ','単体商品'].includes(r['カテゴリ']) },
-                { name: '数量', type: 'number', visible: true, editable: true },
-                { name: '説明', type: 'textarea', visible: true, editable: true }
+                { name: '品名', type: 'select', visible: true, editable: false, refMaster: 'M_商品', filter: (r)=>r['カテゴリ']==='商品', required: true },
+                { name: '部品', type: 'select', visible: true, editable: false, refMaster: 'M_商品', filter: (r)=>['パーツ','単体商品'].includes(r['カテゴリ']), required: true },
+                { name: '数量', type: 'number', visible: true, editable: true, required: true },
+                { name: '説明', type: 'textarea', visible: true, editable: true, required: false }
             ]
         },
         'M_経費品名': {
             key: '品名',
             fields: [
-                { name: '表示順', type: 'number', visible: true, editable: true },
-                { name: '品名', type: 'text', visible: true, editable: false },
-                { name: 'デフォルト仕訳', type: 'select', visible: true, editable: true, refMaster: 'M_仕訳' },
-                { name: '使用FLG', type: 'switch', visible: true, editable: true }
+                { name: '表示順', type: 'number', visible: true, editable: true, required: true },
+                { name: '品名', type: 'text', visible: true, editable: false, required: true },
+                { name: 'デフォルト仕訳', type: 'select', visible: true, editable: true, refMaster: 'M_仕訳', required: false },
+                { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true }
             ]
         },
         'T_在庫集計': {
             key: '品名',
             fields: [
-                { name: '優先度', type: 'number', visible: true, editable: true },
-                { name: '表示順', type: 'number', visible: true, editable: true },
-                { name: '品名', type: 'text', visible: true, editable: false },
-                { name: 'カテゴリ', type: 'text', visible: true, editable: false },
-                { name: '現在庫数', type: 'number', visible: true, editable: false },
-                { name: '閾値', type: 'number', visible: true, editable: true },
-                { name: '最終更新日', visible: false },
-                { name: '使用FLG', type: 'switch', visible: true, editable: true },
-                { name: '最終棚卸日', type: 'text', visible: true, editable: false },
-                { name: '商品ID', type: 'text', visible: true, editable: false }, 
-                { name: '保管場所', type: 'text', visible: true, editable: false },
-                { name: 'QR/バーコード', type: 'text', visible: true, editable: false }
+                { name: '優先度', type: 'number', visible: true, editable: true, required: true },
+                { name: '表示順', type: 'number', visible: true, editable: true, required: true },
+                { name: '品名', type: 'text', visible: true, editable: false, required: true },
+                { name: 'カテゴリ', type: 'text', visible: true, editable: false, required: true },
+                { name: '現在庫数', type: 'number', visible: true, editable: false, required: true },
+                { name: '閾値', type: 'number', visible: true, editable: true, required: true },
+                { name: '最終更新日', visible: false, required: false },
+                { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true },
+                { name: '最終棚卸日', type: 'text', visible: true, editable: false, required: false },
+                { name: '商品ID', type: 'text', visible: true, editable: false, required: true }, 
+                { name: '保管場所', type: 'text', visible: true, editable: false, required: false },
+                { name: 'QR/バーコード', type: 'text', visible: true, editable: false, required: false }
             ]
         },
         'M_支払': {
             key: '支払方法',
             fields: [
-                { name: '表示順', type: 'number', visible: true, editable: true },
-                { name: '支払方法', type: 'text', visible: true, editable: false },
-                { name: '使用FLG', type: 'switch', visible: true, editable: true }
+                { name: '表示順', type: 'number', visible: true, editable: true, required: true },
+                { name: '支払方法', type: 'text', visible: true, editable: false, required: true },
+                { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true }
+            ]
+        },
+        'M_ステータス': {
+            key: 'ステータス名称',
+            fields: [
+                { name: '表示順', type: 'number', visible: true, editable: true, required: true },
+                { name: '対象機能', type: 'text', visible: true, editable: true, required: true },
+                { name: '画面名称', type: 'text', visible: true, editable: true, required: true },
+                { name: 'ステータス名称', type: 'text', visible: true, editable: true, required: true },
+                { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true }
+            ]
+        },
+        'M_画面制御': {
+            key: '要素ID',
+            fields: [
+                { name: '対象機能', type: 'text', visible: true, editable: true, required: true },
+                { name: '画面名称', type: 'text', visible: true, editable: true, required: true },
+                { name: '要素ID', type: 'text', visible: true, editable: true, required: true },
+                { name: '画面上の項目名', type: 'text', visible: true, editable: true, required: true },
+                { name: 'タイプ', type: 'text', visible: true, editable: true, required: true },
+                { name: '参照マスタ', type: 'text', visible: true, editable: true, required: true },
+                { name: '固定値の内容', type: 'text', visible: true, editable: true, required: false },
+                { name: '説明', type: 'textarea', visible: true, editable: true, required: false },
+                { name: '抽出条件', type: 'textarea', visible: true, editable: true, required: false },
+                { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true }
             ]
         }
     };
@@ -2846,8 +2871,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const profitYearHTML = isFY ? '' : getGrowthHTML(calcRate(current.profit, lastYear.profit), yearLabel);
 
             const pSales = current.personalSales || 0;
-            const salesTotalHTML = `¥${Math.round(current.sales).toLocaleString()}${pSales > 0 ? `<span style="font-size:0.75em;color:var(--text-muted);margin-left:4px;">(¥${Math.round(current.sales + pSales).toLocaleString()})</span>` : ''}`;
-            const profitTotalHTML = `¥${Math.round(current.profit).toLocaleString()}${pSales > 0 ? `<span style="font-size:0.75em;color:var(--text-muted);margin-left:4px;">(¥${Math.round(current.profit + pSales).toLocaleString()})</span>` : ''}`;
+            const salesTotalHTML = `¥${Math.round(current.sales).toLocaleString()}${pSales > 0 ? `<br><span style="font-size:0.75em;color:var(--text-muted);">(¥${Math.round(current.sales + pSales).toLocaleString()})</span>` : ''}`;
+            const profitTotalHTML = `¥${Math.round(current.profit).toLocaleString()}${pSales > 0 ? `<br><span style="font-size:0.75em;color:var(--text-muted);">(¥${Math.round(current.profit + pSales).toLocaleString()})</span>` : ''}`;
 
             summaryCards.innerHTML = `
                 <div class="mini-summary-card income">
@@ -3057,7 +3082,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return `
                     <tr>
                         <td class="sticky-col first">${formatDate(row['日付'], 'short')}</td>
-                        <td class="sticky-col second" title="${itemName}">${itemName}</td>
+                        <td class="sticky-col second" title="${itemName}" onclick="this.classList.toggle('expanded')">${itemName}</td>
                         <td>${s > 0 ? '¥' + s.toLocaleString() : "-"}</td>
                         <td>${p > 0 ? '¥' + p.toLocaleString() : "-"}</td>
                         <td>${c > 0 ? '¥' + c.toLocaleString() : "-"}</td>
@@ -3752,7 +3777,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 keys = rawKeys;
             }
 
-            head.innerHTML = `<tr>${keys.map(k => `<th>${k}</th>`).join('')}<th></th></tr>`;
+            head.innerHTML = `<tr><th class="sticky-col">操作</th>${keys.map(k => `<th>${k}</th>`).join('')}</tr>`;
 
             // ボディ生成
             renderMasterTableBody(data, keys, masterKey);
@@ -3817,11 +3842,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             btnEdit.innerHTML = `<ion-icon name="create-outline"></ion-icon>`;
             btnEdit.onclick = () => showMasterEntryModal(activeMasterKey, keys, row);
 
+            tdActions.classList.add('sticky-col');
             tdActions.appendChild(btnStatus);
             tdActions.appendChild(btnEdit);
 
-            tr.innerHTML = html;
             tr.appendChild(tdActions);
+            tr.insertAdjacentHTML('beforeend', html);
             body.appendChild(tr);
         });
     }
@@ -3911,6 +3937,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             } else if (type === 'textarea') {
                 inputHtml = `<textarea name="${key}" ${!isEditable ? 'readonly class="readonly-field"' : ''}>${value !== undefined ? value : ''}</textarea>`;
+            } else if (key === 'QR/バーコード') {
+                inputHtml = `
+                    <div class="input-with-icon">
+                        <input type="text" 
+                               name="${key}" 
+                               value="${value !== undefined ? value : ''}"
+                               ${!isEditable ? 'readonly class="readonly-field"' : ''}>
+                        <button type="button" class="icon-input-btn" onclick="triggerMasterScanner(this)" title="スキャン">
+                            <ion-icon name="camera-outline"></ion-icon>
+                        </button>
+                    </div>
+                `;
             } else {
                 inputHtml = `
                     <input type="${type}" 
@@ -3921,7 +3959,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             }
 
-            group.innerHTML = `<label>${key}</label>${inputHtml}`;
+            const labelSuffix = fieldConfig && fieldConfig.required === false ? ' <span style="font-size:10px; color:#999;">(任意)</span>' : '';
+            group.innerHTML = `<label>${key}${labelSuffix}</label>${inputHtml}`;
             fields.appendChild(group);
         });
 
@@ -3945,7 +3984,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     value = element ? element.value.trim() : '';
                 }
 
-                if (value === "" && type !== 'switch') {
+                const isRequired = fieldConfig ? fieldConfig.required !== false : true;
+                if (isRequired && value === "" && type !== 'switch') {
                     if (!hasError) showToast(`「${key}」を入力してください。`, 'error');
                     hasError = true;
                 }
@@ -4004,6 +4044,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
     }
+
+    // マスタ編集用スキャナー起動
+    window.triggerMasterScanner = function(btn) {
+        const input = btn.previousElementSibling;
+        const originalOnScanSuccess = window.onScanSuccess;
+        
+        // 一時的なスキャン成功時処理
+        window.onScanSuccess = function(decodedText) {
+            input.value = decodedText;
+            stopScanner();
+            showToast('バーコードを読み取りました', 'success');
+            // 元の処理に戻す
+            window.onScanSuccess = originalOnScanSuccess;
+        };
+        
+        startScanner();
+    };
 
     /**
      * トースト通知を表示する

@@ -19,7 +19,16 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    overflow-x: hidden;
+    background-color: var(--bg-color);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text-main);
     -webkit-tap-highlight-color: transparent;
 }
 
@@ -317,7 +326,7 @@ input:checked + .slider:before {
     z-index: 10000;
 }
 
-.modal-content {
+#login-modal .modal-content {
     background: white;
     padding: 30px;
     border-radius: 24px;
@@ -1438,17 +1447,30 @@ input:checked + .slider:before {
 
 .sticky-col.first {
     left: 0;
-    min-width: 50px;
+    min-width: 45px;
+    font-size: 11px;
 }
 
 .sticky-col.second {
-    left: 50px; /* Offset by first col width */
-    min-width: 80px;
-    max-width: 180px;
+    left: 45px; /* Offset by first col width */
+    min-width: 60px;
+    max-width: 150px;
     border-right: 2px solid rgba(22, 163, 74, 0.15) !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.sticky-col.second.expanded {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    max-width: none !important;
+    background: #fff !important;
+    position: sticky !important; /* Keep it sticky even when expanded */
+    z-index: 20 !important;
+    box-shadow: 4px 0 10px rgba(0,0,0,0.1);
 }
 
 /* Z-index for Sticky Header x Sticky Column intersection */
@@ -1498,28 +1520,24 @@ input:checked + .slider:before {
 }
 
 #stock-search-clear {
-    position: absolute;
-    right: 12px;
+    display: none; /* 初期は非表示 */
     background: rgba(0,0,0,0.1);
     border: none;
     border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    display: flex;
+    width: 22px;
+    height: 22px;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     color: var(--text-muted);
     font-size: 14px;
     transition: all 0.2s;
-    opacity: 0;
-    pointer-events: none;
-    z-index: 5;
+    margin-right: 8px; /* カメラとの間隔 */
+    flex-shrink: 0;
 }
 
 #stock-search-clear.visible {
-    opacity: 1;
-    pointer-events: auto;
+    display: flex;
 }
 
 .inventory-toggles-wrapper {
@@ -1657,6 +1675,31 @@ input:checked + .slider:before {
     cursor: pointer;
     transition: all 0.2s ease;
     box-shadow: 0 2px 8px rgba(22, 163, 74, 0.2);
+}
+
+.btn-export {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-green);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2);
+}
+
+.btn-export ion-icon {
+    font-size: 18px;
+}
+
+.btn-export:active {
+    transform: scale(0.95);
+    box-shadow: none;
 }
 
 .icon-btn-primary:hover {
@@ -2928,7 +2971,8 @@ input:checked + .slider:before {
 .modal-container {
     width: 95%;
     max-width: 600px;
-    height: 85vh;
+    max-height: 90vh;
+    height: auto;
     display: flex;
     flex-direction: column;
     padding: 0 !important;
@@ -2966,6 +3010,8 @@ input:checked + .slider:before {
     overflow-y: auto;
     padding: 20px;
     background: #fff;
+    width: 100%; /* 横幅いっぱいに広げる */
+    border-radius: 0; /* 共通定義の角丸を打ち消す */
 }
 
 .settings-view {
@@ -3022,6 +3068,7 @@ input:checked + .slider:before {
     gap: 12px;
     margin-bottom: 16px;
     align-items: center;
+    width: 100%;
 }
 
 .search-bar.mini {
@@ -3029,6 +3076,7 @@ input:checked + .slider:before {
     padding: 0 12px;
     height: 40px;
     flex: 1;
+    min-width: 0; /* flexアイテムの縮小を許可 */
 }
 
 .mini-btn {
@@ -3039,6 +3087,7 @@ input:checked + .slider:before {
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-shrink: 0; /* ボタンが縮まないように固定 */
 }
 
 .master-table-wrapper {
@@ -3046,6 +3095,7 @@ input:checked + .slider:before {
     border-radius: 12px;
     overflow-x: auto;
     border: 1px solid rgba(0,0,0,0.05);
+    margin: 0 -10px; /* モバイルで見切れないように微調整 */
 }
 
 .master-table {
@@ -3092,6 +3142,59 @@ input:checked + .slider:before {
     background: #f9fafb;
 }
 
+/* 固定列（操作ボタン用） */
+.sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background: white !important;
+    border-right: 2px solid rgba(0,0,0,0.05) !important;
+    text-align: left;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    min-width: 40px;
+}
+
+th.sticky-col {
+    z-index: 6;
+    background: #f9fafb !important;
+}
+
+/* 非活性行の固定列背景色調整 */
+.master-row-inactive .sticky-col {
+    background: #f9fafb !important;
+}
+
+/* 入力欄横のアイコンボタン */
+.input-with-icon {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.input-with-icon input {
+    flex: 1;
+}
+
+.icon-input-btn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--light-green);
+    color: var(--accent-green);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    font-size: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.icon-input-btn:active {
+    transform: scale(0.9);
+}
+
 
 
 /* --- iPhone 12 mini (375px) Optimization --- */
@@ -3111,12 +3214,87 @@ input:checked + .slider:before {
 
 /* --- iPhone / Mobile Layout Fixes (s0430-03, 04, 05) --- */
 @media screen and (max-width: 480px) {
-    /* 1. 蝨ｨ蠎ｫ繝倥ャ繝繝ｼ縺ｮ譛邨りｪｿ謨ｴ (驥阪↑繧願ｧ｣豸� �� 菴咲ｽｮ荳翫￡) */
+    .app-container {
+        padding: 10px !important;
+        padding-bottom: 90px !important;
+        overflow-x: hidden; /* 横スクロールを強制防止 */
+    }
+    .glass-card {
+        padding: 12px !important;
+    }
+    .alert-cards-container {
+        padding-right: 2px;
+    }
+
+    /* ホームサマリーカードのサイズ調整 */
+    .ledger-top-summary {
+        gap: 6px !important;
+        margin-bottom: 15px !important;
+    }
+    .mini-summary-card {
+        padding: 8px 4px !important;
+        min-width: 0; /* はみ出し防止 */
+    }
+    .mini-summary-card label {
+        font-size: 9px !important;
+        margin-bottom: 2px !important;
+    }
+    .mini-summary-card .val {
+        font-size: 10px !important;
+        white-space: normal !important; /* 折り返しを許可して幅を抑える */
+        word-break: break-all;
+    }
+    .growth-container {
+        display: flex;
+        flex-direction: column; /* 縦に並べて横幅を節約 */
+        gap: 2px;
+    }
+    .growth-badge {
+        font-size: 8px !important;
+        padding: 1px 4px !important;
+    }
+
+    /* フィルタエリアのコンパクト化 */
+    .unified-ledger-filter {
+        padding: 8px !important;
+        margin-bottom: 12px !important;
+    }
+    .filter-row {
+        gap: 8px !important;
+        flex-wrap: wrap !important; /* 1行に収まらない場合は折り返す */
+        overflow-x: visible !important;
+    }
+    .segment-group {
+        gap: 2px !important;
+        flex-wrap: wrap !important; /* ボタンが多い場合は折り返す */
+    }
+    .segment-btn {
+        padding: 4px 6px !important;
+        font-size: 11px !important;
+        min-width: 0 !important;
+    }
+    .unified-ledger-filter select {
+        padding: 2px 16px 2px 4px !important;
+        font-size: 11px !important;
+        height: 28px !important;
+    }
+
+    /* 月次明細の固定列幅調整 */
+    .sticky-col.first {
+        min-width: 42px !important;
+    }
+    .sticky-col.second {
+        left: 42px !important;
+        max-width: 80px !important;
+        font-size: 11px;
+    }
+
+    /* 1. 在庫ヘッダーの最終調整 (重なり解消 ＆ 位置上げ) */
     .inventory-header {
         display: grid !important;
-        grid-template-columns: 1fr 120px !important; /* 蜿ｳ蛛ｴ縺ｮ蟷�ｒ蠎�￡縺ｦ驥阪↑繧企亟豁｢ */
+        grid-template-columns: 1fr 120px !important;
         align-items: center !important;
-        gap: 12px !important; /* 髫咎俣繧堤｢ｺ菫� */
+        gap: 12px !important;
         padding: 0 !important;
         position: relative;
     }

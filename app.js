@@ -1,9 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("System initialization started... (v2.2-QR-LayoutFixed)");
     
-    // 起動確認用のトーストを表示（デバッグ用：後で消せます）
-    if (typeof showToast === 'function') showToast('システムを起動しています...', 'success');
-
     // ---- API Configuration ----
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzexidaVzlRQ1_StDZo6Oo_oOt9TtX33Nk2sPwbo-oDzuRW6_Tbt2_zQxlxv-Ctr4jZuA/exec';
     let currentAuthKey = localStorage.getItem('inventory_auth_key') || '';
@@ -146,17 +143,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 1. まずキャッシュからマスタを読み込んでUIを構築
         loadMastersFromCache();
 
-        // 2. 必須データ（在庫・ホーム用）を最優先で取得
         console.time('Essential Load');
-        if (typeof showToast === 'function') showToast('システムを起動しています...', 'success');
         await initSystem('essential');
         console.timeEnd('Essential Load');
-        if (typeof showToast === 'function') showToast('システムを起動しました', 'success');
 
-        // 4. 残りの詳細履歴データをバックグラウンドで非同期に取得
-        initSystem('all').then(() => {
+
+        // 4. 残りの詳細履歴データをバックグラウンドで非同期に取得 (マスタは取得済みなのでスキップ)
+        initSystem('all', { skipMasters: true }).then(() => {
             console.log("Background data load completed.");
-            if (typeof showToast === 'function') showToast('詳細データの同期が完了しました', 'success');
         }).catch(err => {
             console.warn("Background load failed:", err);
         });
@@ -187,10 +181,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     //* --- 利益・進捗バッジ --- */
 
-    async function initSystem(scope = 'all') {
-        console.log(`Fetching system init data (scope: ${scope})...`);
+    async function initSystem(scope = 'all', options = {}) {
+        console.log(`Fetching system init data (scope: ${scope}, skipMasters: ${options.skipMasters})...`);
         try {
-            const response = await fetchAPI('getInitData', { scope: scope });
+            const response = await fetchAPI('getInitData', { scope: scope, skipMasters: options.skipMasters });
             if (response.status === 'success') {
                 // マスタの処理（二次元配列をオブジェクトに変換）
                 const masters = {};
@@ -700,6 +694,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const bodyData = Object.assign({ action: action, key: currentAuthKey }, payload);
+        
+        if (!currentAuthKey && action !== 'getInitData') {
+            console.warn(`[fetchAPI] Warning: No auth key for action: ${action}`);
+        }
 
         // GAS本番環境 (google.script.run が存在する場合)
         if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -734,6 +732,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const result = await response.json();
             if (result.status === 'error' && result.message.includes('Unauthorized')) {
+                console.error(`[fetchAPI] Unauthorized error for action: ${action}`, result);
                 handleUnauthorized();
             }
             return result;
@@ -814,6 +813,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     // システム初期化を再開
+                    if (typeof showToast === 'function') showToast('システムを起動しています...', 'success');
                     initSystem('all');
                 } else {
                     errorMsg.textContent = result.message || 'パスワードが正しくありません';
@@ -912,7 +912,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 initSystem().then(() => {
                     if (icon) icon.style.animation = '';
                     setLoading(false);
-                    showToast('同期が完了しました');
                 }).catch(e => {
                     if (icon) icon.style.animation = '';
                     setLoading(false);

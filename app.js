@@ -1184,14 +1184,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const allStockProducts = currentMasters['T_在庫集計'] || [];
 
         const filtered = allStockProducts.filter(p => {
-            const name = (p['品名'] || "").toLowerCase();
-            const category = (p['カテゴリ'] || "").toLowerCase();
+            const name = String(p['品名'] || "").toLowerCase();
+            const category = String(p['カテゴリ'] || "").toLowerCase();
             
             // マスタからJANコードとIDを補完して検索対象にする
             const itemInMaster = (currentMasters['M_商品'] || []).find(m => m['品名'] === p['品名']);
-            const id = ( (itemInMaster && itemInMaster['商品ID']) || p['商品ID'] || "").toLowerCase();
-            const barcode = ( (itemInMaster && itemInMaster['QR/バーコード']) || p['QR/バーコード'] || "").toLowerCase();
-            const location = (p['保管場所'] || (itemInMaster && itemInMaster['保管場所']) || "").toLowerCase();
+            const id = String( (itemInMaster && itemInMaster['商品ID']) || p['商品ID'] || "").toLowerCase();
+            const barcode = String( (itemInMaster && itemInMaster['QR/バーコード']) || p['QR/バーコード'] || "").toLowerCase();
+            const location = String(p['保管場所'] || (itemInMaster && itemInMaster['保管場所']) || "").toLowerCase();
             
             const useFlag = parseInt(p['使用FLG']) !== 0;
             const threshold = parseFloat(p['閾値']) || 0;

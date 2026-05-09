@@ -737,9 +737,9 @@ input:checked + .slider:before {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px; /* gapを少し詰める */
     background: rgba(0,0,0,0.02);
-    padding: 8px 12px;
+    padding: 8px 4px; /* 横パディングを極小化 */
     border-radius: 10px;
 }
 
@@ -747,6 +747,8 @@ input:checked + .slider:before {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    flex-shrink: 0; /* 圧縮されないように固定 */
+    min-width: fit-content;
 }
 
 .control-label {
@@ -3215,12 +3217,13 @@ th.sticky-col {
 /* --- iPhone / Mobile Layout Fixes (s0430-03, 04, 05) --- */
 @media screen and (max-width: 480px) {
     .app-container {
-        padding: 10px !important;
+        padding: 0 !important; /* 両端の隙間をゼロにする */
         padding-bottom: 90px !important;
         overflow-x: hidden; /* 横スクロールを強制防止 */
     }
     .glass-card {
-        padding: 12px !important;
+        padding: 6px !important; /* カード内の余白をさらに削る */
+        border-radius: 12px !important; /* 隙間が減る分、角丸も調整 */
     }
     .alert-cards-container {
         padding-right: 2px;

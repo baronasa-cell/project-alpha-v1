@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { name: '説明', type: 'textarea', visible: true, editable: true, required: false },
                 { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true },
                 { name: '画像URL', visible: false, required: false },
-                { name: '保管場所', type: 'select', options: ['1_棚上：メイン', '2_棚中：サブ', '3_棚下：梱包', '4_押入上1：部品1', '5_押入上2：部品2', '6_押入下1：部品3', '7_押入下2：部品箱'], visible: true, editable: true, required: false },
+                { name: '保管場所', type: 'select', options: ['1_棚上：メイン', '2_棚中：サブ1', '3_棚下：梱包1', '4_押入上1：部品1', '5_押入上2：部品2', '6_押入上3：梱包2', '7_押入下1：サブ2', '8_押入下2：部品箱'], visible: true, editable: true, required: false },
                 { name: 'QR/バーコード', type: 'text', visible: true, editable: true, required: false }
             ]
         },
@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true },
                 { name: '最終棚卸日', type: 'text', visible: true, editable: false, required: false },
                 { name: '商品ID', type: 'text', visible: true, editable: false, required: true }, 
-                { name: '保管場所', type: 'select', options: ['1_棚上：メイン', '2_棚中：サブ', '3_棚下：梱包', '4_押入上1：部品1', '5_押入上2：部品2', '6_押入下1：部品3', '7_押入下2：部品箱'], visible: true, editable: false, required: false },
+                { name: '保管場所', type: 'select', options: ['1_棚上：メイン', '2_棚中：サブ1', '3_棚下：梱包1', '4_押入上1：部品1', '5_押入上2：部品2', '6_押入上3：梱包2', '7_押入下1：サブ2', '8_押入下2：部品箱'], visible: true, editable: false, required: false },
                 { name: 'QR/バーコード', type: 'text', visible: true, editable: false, required: false }
             ]
         },
@@ -2136,8 +2136,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 1. 場所QRコードの判定 (LOC-XXXX, LOC:XXXX, または名称そのまま)
         const locationOptions = [
-            '1_棚上：メイン', '2_棚中：サブ', '3_棚下：梱包',
-            '4_押入上1：部品1', '5_押入上2：部品2', '6_押入下1：部品3', '7_押入下2：部品箱'
+            '1_棚上：メイン', '2_棚中：サブ1', '3_棚下：梱包1',
+            '4_押入上1：部品1', '5_押入上2：部品2', '6_押入上3：梱包2',
+            '7_押入下1：サブ2', '8_押入下2：部品箱'
         ];
         
         let targetLoc = null;

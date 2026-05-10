@@ -3239,11 +3239,13 @@ th.sticky-col {
         min-width: 0; /* はみ出し防止 */
     }
     .mini-summary-card label {
-        font-size: 9px !important;
+        font-size: 11px !important;
         margin-bottom: 2px !important;
+        font-weight: 600;
     }
     .mini-summary-card .val {
-        font-size: 10px !important;
+        font-size: 14px !important;
+        font-weight: 800 !important;
         white-space: normal !important; /* 折り返しを許可して幅を抑える */
         word-break: break-all;
     }
@@ -3253,7 +3255,7 @@ th.sticky-col {
         gap: 2px;
     }
     .growth-badge {
-        font-size: 8px !important;
+        font-size: 9px !important;
         padding: 1px 4px !important;
     }
 

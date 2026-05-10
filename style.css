@@ -448,7 +448,7 @@ input:checked + .slider:before {
 }
 
 .auto-process-info li::before {
-    content: "繝ｻ";
+    content: "\30FB";
     color: var(--accent-green);
     position: absolute;
     left: -12px;
@@ -3235,18 +3235,20 @@ th.sticky-col {
         margin-bottom: 15px !important;
     }
     .mini-summary-card {
-        padding: 8px 4px !important;
-        min-width: 0; /* はみ出し防止 */
+        padding: 6px 2px !important;
+        min-width: 0;
     }
     .mini-summary-card label {
-        font-size: 11px !important;
-        margin-bottom: 2px !important;
+        font-size: 12px !important;
+        margin-bottom: 1px !important;
         font-weight: 600;
+        opacity: 0.8;
     }
     .mini-summary-card .val {
-        font-size: 14px !important;
+        font-size: 19px !important; /* 大幅に拡大 */
         font-weight: 800 !important;
-        white-space: normal !important; /* 折り返しを許可して幅を抑える */
+        line-height: 1.1 !important;
+        white-space: normal !important;
         word-break: break-all;
     }
     .growth-container {
@@ -3255,8 +3257,10 @@ th.sticky-col {
         gap: 2px;
     }
     .growth-badge {
-        font-size: 9px !important;
+        font-size: 10px !important;
         padding: 1px 4px !important;
+        background: rgba(0,0,0,0.05);
+        border-radius: 4px;
     }
 
     /* フィルタエリアのコンパクト化 */

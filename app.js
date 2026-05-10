@@ -2888,8 +2888,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const profitYearHTML = isFY ? '' : getGrowthHTML(calcRate(current.profit, lastYear.profit), yearLabel);
 
             const pSales = current.personalSales || 0;
-            const salesTotalHTML = `¥${Math.round(current.sales).toLocaleString()}${pSales > 0 ? `<br><span style="font-size:0.75em;color:var(--text-muted);">(¥${Math.round(current.sales + pSales).toLocaleString()})</span>` : ''}`;
-            const profitTotalHTML = `¥${Math.round(current.profit).toLocaleString()}${pSales > 0 ? `<br><span style="font-size:0.75em;color:var(--text-muted);">(¥${Math.round(current.profit + pSales).toLocaleString()})</span>` : ''}`;
+            const salesTotalHTML = `¥${Math.round(current.sales).toLocaleString()}${pSales > 0 ? `<br><span style="font-size:12px;color:var(--text-muted);">(¥${Math.round(current.sales + pSales).toLocaleString()})</span>` : ''}`;
+            const profitTotalHTML = `¥${Math.round(current.profit).toLocaleString()}${pSales > 0 ? `<br><span style="font-size:12px;color:var(--text-muted);">(¥${Math.round(current.profit + pSales).toLocaleString()})</span>` : ''}`;
 
             summaryCards.innerHTML = `
                 <div class="mini-summary-card income">

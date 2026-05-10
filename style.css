@@ -136,6 +136,12 @@ input:checked + .slider:before {
     padding: 8px;
     border-radius: 12px;
 }
+.system-icon-img {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
 
 .glass-header h1 {
     font-size: 16px;

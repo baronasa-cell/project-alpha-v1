@@ -194,8 +194,13 @@ input:checked + .slider:before {
 /* Input Grid for side-by-side fields */
 .input-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+}
+
+.input-group {
+    margin-bottom: 20px;
+    min-width: 0; /* 防止: グリッド内での突き出し */
 }
 
 .input-grid-4-6 {
@@ -208,6 +213,7 @@ input:checked + .slider:before {
 #content-area {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden; /* 横ぶれ防止 */
     padding: 24px 10px calc(var(--bottom-nav-height) + 24px);
     scroll-behavior: smooth;
 }
@@ -265,7 +271,7 @@ input:checked + .slider:before {
 
 .history-inputs-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
 }
 

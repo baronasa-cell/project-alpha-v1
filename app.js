@@ -1248,35 +1248,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 在庫一覧の初期描画: フィルタ設定を考慮して描画
         applyStockFilters();
-        
-        // グローバルデータリストの更新 (提案30: 履歴カード用)
-        updateGlobalDatalists(masters);
-    }
-
-    /**
-     * 履歴カード等の編集で使用する共通データリストを更新する
-     */
-    function updateGlobalDatalists(masters) {
-        // 仕入先マスタ
-        const vendors = (masters['M_仕入先'] || [])
-            .filter(v => (parseInt(v['使用FLG']) === 1 || v['使用FLG'] == 1))
-            .sort((a, b) => (a['表示順'] || 0) - (b['表示順'] || 0));
-        const vendorElm = document.getElementById('master-vendors');
-        if (vendorElm) populateElement(vendorElm, 'suggest', vendors.map(v => v['仕入先']));
-
-        // 支払方法マスタ
-        const payments = (masters['M_支払'] || [])
-            .filter(v => (parseInt(v['使用FLG']) === 1 || v['使用FLG'] == 1))
-            .sort((a, b) => (a['表示順'] || 0) - (b['表示順'] || 0));
-        const paymentElm = document.getElementById('master-payments');
-        if (paymentElm) populateElement(paymentElm, 'suggest', payments.map(p => p['支払方法']));
-
-        // 仕訳マスタ
-        const accounts = (masters['M_仕訳'] || [])
-            .filter(v => (parseInt(v['使用FLG']) === 1 || v['使用FLG'] == 1))
-            .sort((a, b) => (a['表示順'] || 0) - (b['表示順'] || 0));
-        const accountElm = document.getElementById('master-accounts');
-        if (accountElm) populateElement(accountElm, 'suggest', accounts.map(a => a['仕訳']));
     }
 
     /**
@@ -1366,6 +1337,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elm.appendChild(o);
             });
             if (currentVal) elm.value = currentVal;
+        } else if (elm.tagName === 'DATALIST') {
+            elm.innerHTML = '';
+            options.forEach(opt => {
+                const o = document.createElement('option');
+                o.value = opt;
+                elm.appendChild(o);
+            });
         } else if (elm.hasAttribute('list')) {
             const listId = elm.getAttribute('list');
             if (listId) {
@@ -1644,11 +1622,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // 必須チェック
             if (rule.required) {
-                // 購入予定の場合は価格と数量の必須チェックをスキップ (提案30)
+                // 購入予定の場合はすべての必須チェックをスキップ (提案30: 柔軟なワークフロー)
                 const isPlanned = (data.status === '購入予定');
-                const isPriceOrQty = (rule.key === 'price' || rule.key === 'quantity');
                 
-                if (!(isPlanned && isPriceOrQty)) {
+                if (!isPlanned) {
                     if (val === undefined || val === null || val === '' || (typeof val === 'number' && isNaN(val))) {
                         return `「${rule.label}」を入力してください。`;
                     }
@@ -1657,11 +1634,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // 数値チェック（最小値）
             if (rule.min !== undefined && typeof val === 'number') {
-                // 購入予定の場合は価格と数量の最小値チェックをスキップ (提案30)
+                // 購入予定の場合は数値の最小値チェックをスキップ
                 const isPlanned = (data.status === '購入予定');
-                const isPriceOrQty = (rule.key === 'price' || rule.key === 'quantity');
 
-                if (!(isPlanned && isPriceOrQty)) {
+                if (!isPlanned) {
                     if (val < rule.min) {
                         return `「${rule.label}」は ${rule.min} 以上の数値を入力してください。`;
                     }
@@ -2541,8 +2517,46 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const idKey = Object.keys(item).find(k => k.endsWith('ID')) || 'ID';
         const id = item[idKey];
+        const itemName = item['品名'] || item['完成品名'] || '';
         const price = item['合計金額'] || item['価格'] || item['販売価格'] || item['小計'] || item['売上'] || 0;
         const formattedPrice = typeof price === 'number' ? price.toLocaleString() : price;
+
+        // M_画面制御の設定を取得するヘルパー
+        const getFieldSetting = (logicalId) => {
+            const masters = currentMasters['M_画面制御'] || [];
+            return masters.find(m => m['要素ID'] === logicalId) || {};
+        };
+
+        // 入力フィールド生成ヘルパー
+        const createInputHtml = (label, header, value, logicalId, typeOverride = null, isReadOnly = false) => {
+            const setting = getFieldSetting(logicalId);
+            const type = typeOverride || setting['タイプ'] || 'text';
+            
+            if (isReadOnly) {
+                const displayVal = (type === 'number' && typeof value === 'number') ? value.toLocaleString() : (value || '-');
+                return `<div class="input-group mini"><label>${label}</label><div class="static-value">${displayVal}</div></div>`;
+            }
+
+            // datalist ID の解決 (index.html の定義に合わせる)
+            let listId = '';
+            if (logicalId === 'buy-vendor') listId = 'supplier-list';
+            else if (logicalId === 'buy-payment') listId = 'payment-list';
+            else if (logicalId === 'exp-vendor') listId = 'vendor-list';
+            else if (logicalId === 'exp-account') listId = 'expense-category-list';
+            else if (logicalId === 'exp-payment') listId = 'expense-payment-list';
+            else if (setting['要素ID']) listId = setting['要素ID'] + '-list';
+
+            if (type === 'number') {
+                // 0 の場合は空にして placeholder で 0 を出すことで 0999 問題を回避
+                const valAttr = (value === 0 || value === '0' || !value) ? '' : value;
+                return `<div class="input-group mini"><label>${label}</label><input type="number" class="note-input" data-header="${header}" value="${valAttr}" placeholder="0" step="any"></div>`;
+            } else if (type === 'date') {
+                return `<div class="input-group mini"><label>${label}</label><input type="date" class="date-input" data-header="${header}" value="${formatISODate(value)}"></div>`;
+            } else {
+                const listAttr = listId ? `list="${listId}"` : '';
+                return `<div class="input-group mini"><label>${label}</label><input type="text" class="note-input" data-header="${header}" value="${value || ''}" ${listAttr}></div>`;
+            }
+        };
 
         let innerHTML = `
             <div class="history-card-header">
@@ -2565,7 +2579,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <span>部材追加</span>
                         </button>
                     ` : ''}
-                    <button class="update-mini-btn" data-id="${id}" data-tab="${tab}" data-current-status="${item['ステータス'] || ''}" title="変更を保存">
+                    <button class="update-mini-btn" data-id="${id}" data-tab="${tab}" data-item="${itemName}" data-category="${item['区分'] || ''}" data-account="${item['仕訳'] || ''}" data-current-status="${item['ステータス'] || ''}" title="変更を保存">
                         <span>保存</span>
                         <ion-icon name="save-outline"></ion-icon>
                     </button>
@@ -2573,46 +2587,49 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
         `;
 
-        const itemName = item['品名'] || item['完成品名'] || '';
+
         const itemInMaster = (currentMasters['M_商品'] || []).find(m => m['品名'] === itemName);
         const imageUrl = itemInMaster ? itemInMaster['画像URL'] : null;
         const thumbHtml = imageUrl ? `<div class="product-thumb-container" style="width:30px; height:30px; margin-right:8px; border-radius:4px;" onclick="showImageModal('${imageUrl}')"><img src="${imageUrl}" loading="lazy"></div>` : '';
 
         if (tab === 'purchase') {
-            const isPending = (item['ステータス'] === '購入予定' && (!item['価格'] || !item['数量']));
+            const isPlanned = (item['ステータス'] === '購入予定');
+            const isPending = (isPlanned && (!item['価格'] || !item['数量']));
             innerHTML += `
                 <div class="history-product-info" style="display: flex; align-items: center;">
                     ${thumbHtml}${itemName}
                     ${isPending ? '<span class="badge badge-pending" style="margin-left:8px; font-size:10px;">情報未確定</span>' : ''}
                 </div>
                 <div class="history-inputs-grid">
-                    <div class="input-group mini"><label>仕入日</label><input type="date" class="date-input" data-header="仕入日" value="${formatISODate(item['仕入日'] || item['発注日'])}"></div>
-                    <div class="input-group mini"><label>入庫日</label><input type="date" class="date-input" data-header="入庫日" value="${formatISODate(item['入庫日'])}"></div>
-                    <div class="input-group mini"><label>価格</label><input type="number" class="note-input" data-header="価格" value="${item['価格'] || 0}" step="1"></div>
-                    <div class="input-group mini"><label>数量</label><input type="number" class="note-input" data-header="数量" value="${item['数量'] || 0}" step="0.01"></div>
-                    <div class="input-group mini"><label>仕入先</label><input type="text" class="note-input" data-header="仕入先" value="${item['仕入先'] || ''}" list="master-vendors"></div>
-                    <div class="input-group mini"><label>支払方法</label><input type="text" class="note-input" data-header="支払方法" value="${item['支払方法'] || ''}" list="master-payments"></div>
-                    <div class="input-group mini" style="grid-column: span 2;">${generateStatusSelect(id, '仕入', item['ステータス'])}</div>
+                    ${createInputHtml('仕入日', '仕入日', item['仕入日'] || item['発注日'], 'buy-date', 'date', false)}
+                    ${createInputHtml('入庫日', '入庫日', item['入庫日'], 'buy-date', 'date', false)}
+                    ${createInputHtml('価格', '価格', item['価格'], 'buy-price', 'number', !isPlanned)}
+                    ${createInputHtml('数量', '数量', item['数量'], 'buy-quantity', 'number', !isPlanned)}
+                    ${createInputHtml('仕入先', '仕入先', item['仕入先'], 'buy-vendor', null, !isPlanned)}
+                    ${createInputHtml('支払方法', '支払方法', item['支払方法'], 'buy-payment', null, !isPlanned)}
+                    ${generateCategorySelect('区分', '仕入', item['区分'], !isPlanned)}
+                    <div class="input-group mini">${generateStatusSelect(id, '仕入', item['ステータス'])}</div>
                 </div>
                 <div class="history-note" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(0,0,0,0.1); font-size: 0.85em; color: var(--text-muted);">
                     <textarea class="note-input" data-header="備考" rows="2" style="width:100%; background:rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.1); border-radius:4px; padding:4px;">${item['備考'] || item['note'] || ''}</textarea>
                 </div>
             `;
         } else if (tab === 'expense') {
-            const isPending = (item['ステータス'] === '購入予定' && (!item['合計金額'] || !item['数量']));
+            const isPlanned = (item['ステータス'] === '購入予定');
+            const isPending = (isPlanned && (!item['合計金額'] || !item['数量']));
             innerHTML += `
                 <div class="history-product-info" style="display: flex; align-items: center;">
                     ${thumbHtml}${itemName}
                     ${isPending ? '<span class="badge badge-pending" style="margin-left:8px; font-size:10px;">情報未確定</span>' : ''}
                 </div>
                 <div class="history-inputs-grid">
-                    <div class="input-group mini"><label>注文日</label><input type="date" class="date-input" data-header="注文日" value="${formatISODate(item['注文日'] || item['登録日'])}"></div>
-                    <div class="input-group mini"><label>完了日</label><input type="date" class="date-input" data-header="完了日" value="${formatISODate(item['完了日'])}"></div>
-                    <div class="input-group mini"><label>金額</label><input type="number" class="note-input" data-header="合計金額" value="${item['合計金額'] || 0}" step="1"></div>
-                    <div class="input-group mini"><label>数量</label><input type="number" class="note-input" data-header="数量" value="${item['数量'] || 0}" step="0.01"></div>
-                    <div class="input-group mini"><label>購入先</label><input type="text" class="note-input" data-header="購入先" value="${item['購入先'] || ''}" list="master-vendors"></div>
-                    <div class="input-group mini"><label>仕訳</label><input type="text" class="note-input" data-header="仕訳" value="${item['仕訳'] || ''}" list="master-accounts"></div>
-                    <div class="input-group mini"><label>支払方法</label><input type="text" class="note-input" data-header="支払方法" value="${item['支払方法'] || ''}" list="master-payments"></div>
+                    ${createInputHtml('注文日', '注文日', item['注文日'] || item['登録日'], 'expense-date', 'date', false)}
+                    ${createInputHtml('完了日', '完了日', item['完了日'], 'expense-date', 'date', false)}
+                    ${createInputHtml('金額', '合計金額', item['合計金額'], 'exp-price', 'number', !isPlanned)}
+                    ${createInputHtml('数量', '数量', item['数量'], 'exp-quantity', 'number', !isPlanned)}
+                    ${createInputHtml('購入先', '購入先', item['購入先'], 'exp-vendor', null, !isPlanned)}
+                    ${createInputHtml('仕訳', '仕訳', item['仕訳'], 'exp-account', null, !isPlanned)}
+                    ${createInputHtml('支払方法', '支払方法', item['支払方法'], 'exp-payment', null, !isPlanned)}
                     <div class="input-group mini">${generateStatusSelect(id, '経費', item['ステータス'])}</div>
                 </div>
                 <div class="history-inputs-grid" style="grid-template-columns: 1fr; margin-top: 5px;">
@@ -2679,6 +2696,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         card.innerHTML = innerHTML;
+
+        // クリアボタンの適用
+        const textInputs = card.querySelectorAll('input[type="text"], input[type="number"]');
+        textInputs.forEach(input => addClearButton(input));
 
         // 保存ボタンにイベントをバインド
         const saveBtn = card.querySelector('.update-mini-btn');
@@ -2781,7 +2802,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         return `<label>ステータス</label><select class="status-select">${options}</select>`;
     }
 
+    /**
+     * 区分（M_区分）のプルダウンを生成する
+     */
+    function generateCategorySelect(label, actionName, currentValue, isReadOnly) {
+        if (isReadOnly) {
+            return `<div class="input-group mini"><label>${label}</label><div class="static-value">${currentValue || '-'}</div></div>`;
+        }
+
+        // M_画面制御から設定を取得を試みる
+        const masters = currentMasters['M_画面制御'] || [];
+        const ctrl = masters.find(m => m['画面名称'] === actionName && m['画面上の項目名'] === label);
+        const refMasterName = ctrl ? ctrl['参照マスタ'] : 'M_区分';
+        
+        const masterData = currentMasters[refMasterName] || [];
+        const categories = masterData
+            .filter(c => {
+                // 使用FLGが1のもののみ
+                if (parseInt(c['使用FLG']) === 0) return false;
+                // 対象機能列があれば絞り込み、なければすべて通す
+                if (c['対象機能'] && c['対象機能'] !== actionName) return false;
+                return true;
+            })
+            .sort((a, b) => (a['表示順'] || 0) - (b['表示順'] || 0));
+
+        let options = '<option value="">選択してください</option>' + categories.map(c => {
+            // カラム名の揺れに対応 (区分名 / 区分名称 / 項目名)
+            const val = c['区分名'] || c['区分名称'] || c['項目名'] || c['仕訳名'] || Object.values(c)[1]; 
+            if (!val) return '';
+            const selected = val === currentValue ? 'selected' : '';
+            return `<option value="${val}" ${selected}>${val}</option>`;
+        }).join('');
+
+        return `<div class="input-group mini"><label>${label}</label><select class="note-input" data-header="${label}">${options}</select></div>`;
+    }
+
     async function handleHistorySave(btn) {
+        const originalHTML = btn.innerHTML;
         const id = btn.getAttribute('data-id');
         const card = btn.closest('.history-card');
         const statusSelect = card.querySelector('.status-select');
@@ -2822,39 +2879,66 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
+        // 静的表示テキストも取得（非編集モード時の値を保持するため）
+        card.querySelectorAll('.static-value').forEach(div => {
+            const label = div.previousElementSibling;
+            if (label && label.tagName === 'LABEL') {
+                const header = label.textContent;
+                if (header && dateUpdates[header] === undefined) {
+                    let val = div.textContent;
+                    if (val === '-') val = '';
+                    // 通貨記号やカンマを除去して数値化
+                    if (['価格', '数量', '合計金額'].includes(header)) {
+                        val = parseFloat(val.replace(/[¥,]/g, '')) || 0;
+                    }
+                    dateUpdates[header] = val;
+                }
+            }
+        });
+
         // 保存前のバリデーション (提案30)
         const currentTab = btn.getAttribute('data-tab');
-        const sheetName = currentTab === 'purchase' ? 'T_仕入' : 
-                          currentTab === 'expense' ? 'T_経費' : null;
+        const sheetNameMap = {
+            'purchase': 'T_仕入',
+            'expense': 'T_経費',
+            'manufacturing': 'T_製造',
+            'sales': 'T_販売'
+        };
+        const sheetName = sheetNameMap[currentTab];
         
         if (sheetName) {
-            // 既存データを取得してマージ
-            const items = lastHistoryData[currentTab] || [];
-            const originalItem = items.find(it => {
-                const ik = Object.keys(it).find(k => k.endsWith('ID')) || 'ID';
-                return it[ik] == id;
-            }) || {};
-
-            const validationData = {
-                ...originalItem,
+            const isPlanned = (newStatus === '購入予定');
+            // 基礎データの構築
+            const finalData = {
                 status: newStatus,
-                ...dateUpdates
+                item: btn.getAttribute('data-item'),
+                ...dateUpdates,
+                note: dateUpdates['備考'],
+                receipt: dateUpdates['レシート']
             };
-            // 内部キーへのマッピング (validateData 用)
-            const finalData = { ...validationData };
+
+            // シートごとの内部キーマッピング (validateData 用)
             if (currentTab === 'purchase') {
-                finalData.date = dateUpdates['仕入日'] || originalItem['仕入日'] || originalItem['発注日'];
+                finalData.date = dateUpdates['仕入日'] || dateUpdates['発注日'];
                 finalData.vendor = dateUpdates['仕入先'];
+                finalData.price = (isPlanned && (dateUpdates['価格'] === '' || dateUpdates['価格'] === undefined)) ? 0 : (parseFloat(dateUpdates['価格']) || 0);
+                finalData.quantity = (isPlanned && (dateUpdates['数量'] === '' || dateUpdates['数量'] === undefined)) ? 1 : (parseFloat(dateUpdates['数量']) || 0);
                 finalData.payment = dateUpdates['支払方法'];
-                finalData.price = dateUpdates['価格'];
-                finalData.quantity = dateUpdates['数量'];
+                finalData.category = dateUpdates['区分'] || btn.getAttribute('data-category');
             } else if (currentTab === 'expense') {
-                finalData.date = dateUpdates['注文日'] || originalItem['注文日'] || originalItem['登録日'];
+                finalData.date = dateUpdates['注文日'] || dateUpdates['登録日'];
                 finalData.vendor = dateUpdates['購入先'];
+                finalData.price = (isPlanned && (dateUpdates['合計金額'] === '' || dateUpdates['合計金額'] === undefined)) ? 0 : (parseFloat(dateUpdates['合計金額']) || 0);
+                finalData.quantity = (isPlanned && (dateUpdates['数量'] === '' || dateUpdates['数量'] === undefined)) ? 1 : (parseFloat(dateUpdates['数量']) || 0);
                 finalData.payment = dateUpdates['支払方法'];
-                finalData.account = dateUpdates['仕訳'];
-                finalData.price = dateUpdates['合計金額'];
-                finalData.quantity = dateUpdates['数量'];
+                finalData.account = dateUpdates['仕訳'] || btn.getAttribute('data-account');
+            } else if (currentTab === 'manufacturing') {
+                finalData.date = dateUpdates['製造開始日'];
+            } else if (currentTab === 'sales') {
+                finalData.date = dateUpdates['販売開始日'];
+                finalData.buyer = dateUpdates['売先'] || btn.getAttribute('data-buyer');
+                finalData.shipping = dateUpdates['発送方法'] || btn.getAttribute('data-shipping');
+                finalData.shippingCost = parseFloat(dateUpdates['送料']) || 0;
             }
 
             const error = validateData(sheetName, finalData);
@@ -2875,7 +2959,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        const originalHTML = btn.innerHTML;
         btn.innerHTML = '<ion-icon name="sync-outline" class="spinning"></ion-icon>';
         btn.disabled = true;
         setLoading(true, 'データを更新中...');

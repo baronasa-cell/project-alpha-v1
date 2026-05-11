@@ -1854,7 +1854,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div class="card-sub-info">
                                 ${itemID ? `<span class="id-badge">${itemID}</span>` : ''}
                                 ${barcode ? `<span class="barcode-badge"><ion-icon name="barcode-outline"></ion-icon>${barcode}</span>` : ''}
-                                ${location ? `<span class="location-badge"><ion-icon name="location-outline"></ion-icon>${location}</span>` : ''}
+                                ${location ? location.split(/[／/，,、\s]+/).filter(s => s).map(loc => `<span class="location-badge"><ion-icon name="location-outline"></ion-icon>${loc}</span>`).join('') : ''}
                                 ${lastStocktakeDate ? `前回: ${lastStocktakeDate.toLocaleDateString()} ` : ''}
                                 ${isRecent ? `<span class="stocktake-done-badge"><ion-icon name="checkmark"></ion-icon>完了</span>` : ''}
                             </div>
@@ -1948,7 +1948,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div class="card-sub-info">
                                 ${itemID ? `<span class="id-badge">${itemID}</span>` : ''}
                                 ${barcode ? `<span class="barcode-badge">${barcode}</span>` : ''}
-                                ${location ? `<span class="location-badge"><ion-icon name="location-outline"></ion-icon>${location}</span>` : ''}
+                                ${location ? location.split(/[／/，,、\s]+/).filter(s => s).map(loc => `<span class="location-badge"><ion-icon name="location-outline"></ion-icon>${loc}</span>`).join('') : ''}
                             </div>
                         </div>
                         <div class="status-icon-wrap">

@@ -1248,6 +1248,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 在庫一覧の初期描画: フィルタ設定を考慮して描画
         applyStockFilters();
+        
+        // グローバルデータリストの更新 (提案30: 履歴カード用)
+        updateGlobalDatalists(masters);
+    }
+
+    /**
+     * 履歴カード等の編集で使用する共通データリストを更新する
+     */
+    function updateGlobalDatalists(masters) {
+        // 仕入先マスタ
+        const vendors = (masters['M_仕入先'] || [])
+            .filter(v => (parseInt(v['使用FLG']) === 1 || v['使用FLG'] == 1))
+            .sort((a, b) => (a['表示順'] || 0) - (b['表示順'] || 0));
+        const vendorElm = document.getElementById('master-vendors');
+        if (vendorElm) populateElement(vendorElm, 'suggest', vendors.map(v => v['仕入先']));
+
+        // 支払方法マスタ
+        const payments = (masters['M_支払'] || [])
+            .filter(v => (parseInt(v['使用FLG']) === 1 || v['使用FLG'] == 1))
+            .sort((a, b) => (a['表示順'] || 0) - (b['表示順'] || 0));
+        const paymentElm = document.getElementById('master-payments');
+        if (paymentElm) populateElement(paymentElm, 'suggest', payments.map(p => p['支払方法']));
+
+        // 仕訳マスタ
+        const accounts = (masters['M_仕訳'] || [])
+            .filter(v => (parseInt(v['使用FLG']) === 1 || v['使用FLG'] == 1))
+            .sort((a, b) => (a['表示順'] || 0) - (b['表示順'] || 0));
+        const accountElm = document.getElementById('master-accounts');
+        if (accountElm) populateElement(accountElm, 'suggest', accounts.map(a => a['仕訳']));
     }
 
     /**
@@ -1615,15 +1644,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // 必須チェック
             if (rule.required) {
-                if (val === undefined || val === null || val === '' || (typeof val === 'number' && isNaN(val))) {
-                    return `「${rule.label}」を入力してください。`;
+                // 購入予定の場合は価格と数量の必須チェックをスキップ (提案30)
+                const isPlanned = (data.status === '購入予定');
+                const isPriceOrQty = (rule.key === 'price' || rule.key === 'quantity');
+                
+                if (!(isPlanned && isPriceOrQty)) {
+                    if (val === undefined || val === null || val === '' || (typeof val === 'number' && isNaN(val))) {
+                        return `「${rule.label}」を入力してください。`;
+                    }
                 }
             }
 
             // 数値チェック（最小値）
             if (rule.min !== undefined && typeof val === 'number') {
-                if (val < rule.min) {
-                    return `「${rule.label}」は ${rule.min} 以上の数値を入力してください。`;
+                // 購入予定の場合は価格と数量の最小値チェックをスキップ (提案30)
+                const isPlanned = (data.status === '購入予定');
+                const isPriceOrQty = (rule.key === 'price' || rule.key === 'quantity');
+
+                if (!(isPlanned && isPriceOrQty)) {
+                    if (val < rule.min) {
+                        return `「${rule.label}」は ${rule.min} 以上の数値を入力してください。`;
+                    }
                 }
             }
 
@@ -2524,7 +2565,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <span>部材追加</span>
                         </button>
                     ` : ''}
-                    <button class="update-mini-btn" data-id="${id}" data-current-status="${item['ステータス'] || ''}" title="変更を保存">
+                    <button class="update-mini-btn" data-id="${id}" data-tab="${tab}" data-current-status="${item['ステータス'] || ''}" title="変更を保存">
                         <span>保存</span>
                         <ion-icon name="save-outline"></ion-icon>
                     </button>
@@ -2538,14 +2579,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         const thumbHtml = imageUrl ? `<div class="product-thumb-container" style="width:30px; height:30px; margin-right:8px; border-radius:4px;" onclick="showImageModal('${imageUrl}')"><img src="${imageUrl}" loading="lazy"></div>` : '';
 
         if (tab === 'purchase') {
+            const isPending = (item['ステータス'] === '購入予定' && (!item['価格'] || !item['数量']));
             innerHTML += `
-                <div class="history-product-info" style="display: flex; align-items: center;">${thumbHtml}${itemName} (¥${formattedPrice}) 数量:${item['数量']}</div>
-                <div class="history-sub-info" style="margin-top: 4px; margin-bottom: 8px; font-size: 0.9em; color: var(--text-secondary);">
-                    ${item['仕入先'] || ''} &nbsp;&nbsp; ${item['支払方法'] || ''} &nbsp;&nbsp; ${item['区分'] || ''}
+                <div class="history-product-info" style="display: flex; align-items: center;">
+                    ${thumbHtml}${itemName}
+                    ${isPending ? '<span class="badge badge-pending" style="margin-left:8px; font-size:10px;">情報未確定</span>' : ''}
                 </div>
                 <div class="history-inputs-grid">
                     <div class="input-group mini"><label>仕入日</label><input type="date" class="date-input" data-header="仕入日" value="${formatISODate(item['仕入日'] || item['発注日'])}"></div>
                     <div class="input-group mini"><label>入庫日</label><input type="date" class="date-input" data-header="入庫日" value="${formatISODate(item['入庫日'])}"></div>
+                    <div class="input-group mini"><label>価格</label><input type="number" class="note-input" data-header="価格" value="${item['価格'] || 0}" step="1"></div>
+                    <div class="input-group mini"><label>数量</label><input type="number" class="note-input" data-header="数量" value="${item['数量'] || 0}" step="0.01"></div>
+                    <div class="input-group mini"><label>仕入先</label><input type="text" class="note-input" data-header="仕入先" value="${item['仕入先'] || ''}" list="master-vendors"></div>
+                    <div class="input-group mini"><label>支払方法</label><input type="text" class="note-input" data-header="支払方法" value="${item['支払方法'] || ''}" list="master-payments"></div>
                     <div class="input-group mini" style="grid-column: span 2;">${generateStatusSelect(id, '仕入', item['ステータス'])}</div>
                 </div>
                 <div class="history-note" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(0,0,0,0.1); font-size: 0.85em; color: var(--text-muted);">
@@ -2553,15 +2599,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             `;
         } else if (tab === 'expense') {
+            const isPending = (item['ステータス'] === '購入予定' && (!item['合計金額'] || !item['数量']));
             innerHTML += `
-                <div class="history-product-info" style="display: flex; align-items: center;">${thumbHtml}${itemName} (¥${formattedPrice}) 数量:${item['数量']}</div>
-                <div class="history-sub-info" style="margin-top: 4px; margin-bottom: 8px; font-size: 0.9em; color: var(--text-secondary);">
-                    ${item['購入先'] || ''} &nbsp;&nbsp; ${item['支払方法'] || ''} &nbsp;&nbsp; ${item['仕訳'] || ''}
+                <div class="history-product-info" style="display: flex; align-items: center;">
+                    ${thumbHtml}${itemName}
+                    ${isPending ? '<span class="badge badge-pending" style="margin-left:8px; font-size:10px;">情報未確定</span>' : ''}
                 </div>
                 <div class="history-inputs-grid">
                     <div class="input-group mini"><label>注文日</label><input type="date" class="date-input" data-header="注文日" value="${formatISODate(item['注文日'] || item['登録日'])}"></div>
                     <div class="input-group mini"><label>完了日</label><input type="date" class="date-input" data-header="完了日" value="${formatISODate(item['完了日'])}"></div>
-                    <div class="input-group mini" style="grid-column: span 2;">${generateStatusSelect(id, '経費', item['ステータス'])}</div>
+                    <div class="input-group mini"><label>金額</label><input type="number" class="note-input" data-header="合計金額" value="${item['合計金額'] || 0}" step="1"></div>
+                    <div class="input-group mini"><label>数量</label><input type="number" class="note-input" data-header="数量" value="${item['数量'] || 0}" step="0.01"></div>
+                    <div class="input-group mini"><label>購入先</label><input type="text" class="note-input" data-header="購入先" value="${item['購入先'] || ''}" list="master-vendors"></div>
+                    <div class="input-group mini"><label>仕訳</label><input type="text" class="note-input" data-header="仕訳" value="${item['仕訳'] || ''}" list="master-accounts"></div>
+                    <div class="input-group mini"><label>支払方法</label><input type="text" class="note-input" data-header="支払方法" value="${item['支払方法'] || ''}" list="master-payments"></div>
+                    <div class="input-group mini">${generateStatusSelect(id, '経費', item['ステータス'])}</div>
                 </div>
                 <div class="history-inputs-grid" style="grid-template-columns: 1fr; margin-top: 5px;">
                     <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9em; color: var(--text-secondary); cursor: pointer;">
@@ -2761,9 +2813,59 @@ document.addEventListener('DOMContentLoaded', async () => {
         card.querySelectorAll('.note-input').forEach(input => {
             const header = input.getAttribute('data-header');
             if (header) {
-                dateUpdates[header] = input.value;
+                let val = input.value;
+                // 数値項目は数値化
+                if (['価格', '数量', '合計金額'].includes(header)) {
+                    val = parseFloat(val) || 0;
+                }
+                dateUpdates[header] = val;
             }
         });
+
+        // 保存前のバリデーション (提案30)
+        const currentTab = btn.getAttribute('data-tab');
+        const sheetName = currentTab === 'purchase' ? 'T_仕入' : 
+                          currentTab === 'expense' ? 'T_経費' : null;
+        
+        if (sheetName) {
+            // 既存データを取得してマージ
+            const items = lastHistoryData[currentTab] || [];
+            const originalItem = items.find(it => {
+                const ik = Object.keys(it).find(k => k.endsWith('ID')) || 'ID';
+                return it[ik] == id;
+            }) || {};
+
+            const validationData = {
+                ...originalItem,
+                status: newStatus,
+                ...dateUpdates
+            };
+            // 内部キーへのマッピング (validateData 用)
+            const finalData = { ...validationData };
+            if (currentTab === 'purchase') {
+                finalData.date = dateUpdates['仕入日'] || originalItem['仕入日'] || originalItem['発注日'];
+                finalData.vendor = dateUpdates['仕入先'];
+                finalData.payment = dateUpdates['支払方法'];
+                finalData.price = dateUpdates['価格'];
+                finalData.quantity = dateUpdates['数量'];
+            } else if (currentTab === 'expense') {
+                finalData.date = dateUpdates['注文日'] || originalItem['注文日'] || originalItem['登録日'];
+                finalData.vendor = dateUpdates['購入先'];
+                finalData.payment = dateUpdates['支払方法'];
+                finalData.account = dateUpdates['仕訳'];
+                finalData.price = dateUpdates['合計金額'];
+                finalData.quantity = dateUpdates['数量'];
+            }
+
+            const error = validateData(sheetName, finalData);
+            if (error) {
+                alert(error);
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+                setLoading(false);
+                return;
+            }
+        }
 
         // チェックボックスの取得
         card.querySelectorAll('.chk-input').forEach(chk => {

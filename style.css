@@ -126,15 +126,26 @@ input:checked + .slider:before {
 .header-main {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
+    width: 100%;
 }
 
-.system-icon {
+.header-center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    justify-content: center;
+}
+
+.header-icon-btn {
     font-size: 24px;
-    color: var(--accent-green);
-    background: rgba(22, 163, 74, 0.1);
-    padding: 8px;
-    border-radius: 12px;
+    color: var(--dark-green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
 }
 .system-icon-img {
     width: 32px;
@@ -2256,6 +2267,96 @@ input:checked + .slider:before {
     background: rgba(22, 163, 74, 0.1);
     padding: 2px 10px;
     border-radius: 20px;
+}
+
+/* Side Menu (提案32) */
+.side-menu {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 280px;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 10001;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+}
+
+.side-menu.open {
+    transform: translateX(280px);
+}
+
+.menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.menu-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.menu-header {
+    padding: 24px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.menu-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--dark-green);
+}
+
+.menu-list {
+    list-style: none;
+    padding: 16px;
+    flex: 1;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    color: var(--text-main);
+    font-weight: 600;
+    transition: background 0.2s;
+    cursor: pointer;
+    margin-bottom: 4px;
+}
+
+.menu-item:active {
+    background: rgba(22, 163, 74, 0.1);
+    color: var(--accent-green);
+}
+
+.menu-item ion-icon {
+    font-size: 20px;
+}
+
+.menu-footer {
+    padding: 24px;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .update-actions {

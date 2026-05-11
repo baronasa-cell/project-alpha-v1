@@ -23,18 +23,39 @@
         </div>
     </div>
     <div class="app-container" style="display: none;">
+        <!-- Side Menu (提案32) -->
+        <div id="menu-overlay" class="menu-overlay"></div>
+        <nav id="side-menu" class="side-menu">
+            <div class="menu-header">
+                <div class="menu-title">メニュー</div>
+                <button id="menu-close-btn" class="icon-btn"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+            <ul class="menu-list">
+                <li class="menu-item" id="menu-settings-btn">
+                    <ion-icon name="settings-outline"></ion-icon>
+                    <span>システム設定</span>
+                </li>
+                <li class="menu-item" id="menu-master-btn">
+                    <ion-icon name="construct-outline"></ion-icon>
+                    <span>マスタ管理</span>
+                </li>
+            </ul>
+            <div class="menu-footer">
+                <p>Ver 1.0.0</p>
+            </div>
+        </nav>
+
         <!-- Header -->
         <header class="glass-header">
             <div class="header-main">
-                <img src="apple-touch-icon.png" class="system-icon-img" alt="logo">
-                <h1 id="header-title">統合管理システム</h1>
-            </div>
-            <div class="header-actions">
-                <button id="sync-btn" class="icon-btn" aria-label="同期">
-                    <ion-icon name="sync-outline"></ion-icon>
+                <button id="menu-open-btn" class="icon-btn header-icon-btn">
+                    <ion-icon name="menu-outline"></ion-icon>
                 </button>
-                <button id="settings-btn" class="icon-btn" aria-label="設定">
-                    <ion-icon name="settings-outline"></ion-icon>
+                <div class="header-center">
+                    <h1 id="header-title">統合管理システム</h1>
+                </div>
+                <button id="sync-btn" class="icon-btn header-icon-btn" title="データを同期">
+                    <ion-icon name="sync-outline"></ion-icon>
                 </button>
             </div>
         </header>

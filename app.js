@@ -927,18 +927,72 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
+        // Side Menu Logic (提案32)
+        const sideMenu = document.getElementById('side-menu');
+        const menuOverlay = document.getElementById('menu-overlay');
+        const menuOpenBtn = document.getElementById('menu-open-btn');
+        const menuCloseBtn = document.getElementById('menu-close-btn');
+
+        if (menuOpenBtn) {
+            menuOpenBtn.addEventListener('click', () => {
+                sideMenu.classList.add('open');
+                menuOverlay.classList.add('visible');
+            });
+        }
+
+        if (menuCloseBtn) {
+            menuCloseBtn.addEventListener('click', () => {
+                sideMenu.classList.remove('open');
+                menuOverlay.classList.remove('visible');
+            });
+        }
+
+        if (menuOverlay) {
+            menuOverlay.addEventListener('click', () => {
+                sideMenu.classList.remove('open');
+                menuOverlay.classList.remove('visible');
+            });
+        }
+
+        // メニュー内アイテムのクリック処理
+        const menuSettingsBtn = document.getElementById('menu-settings-btn');
+        const menuMasterBtn = document.getElementById('menu-master-btn');
+        const settingsModal = document.getElementById('settings-modal');
+
+        if (menuSettingsBtn) {
+            menuSettingsBtn.addEventListener('click', () => {
+                sideMenu.classList.remove('open');
+                menuOverlay.classList.remove('visible');
+                if (settingsModal) {
+                    settingsModal.classList.add('active');
+                    renderMasterList('system');
+                }
+            });
+        }
+
+        if (menuMasterBtn) {
+            menuMasterBtn.addEventListener('click', () => {
+                sideMenu.classList.remove('open');
+                menuOverlay.classList.remove('visible');
+                if (settingsModal) {
+                    settingsModal.classList.add('active');
+                    renderMasterList('master');
+                }
+            });
+        }
+
         // Sync Button
         const syncBtn = document.getElementById('sync-btn');
         if (syncBtn) {
             syncBtn.addEventListener('click', () => {
                 const icon = syncBtn.querySelector('ion-icon');
-                if (icon) icon.style.animation = 'spin 1s linear infinite';
+                if (icon) icon.classList.add('spinning');
                 setLoading(true, 'システムデータを同期中...');
                 initSystem().then(() => {
-                    if (icon) icon.style.animation = '';
+                    if (icon) icon.classList.remove('spinning');
                     setLoading(false);
                 }).catch(e => {
-                    if (icon) icon.style.animation = '';
+                    if (icon) icon.classList.remove('spinning');
                     setLoading(false);
                     showToast('同期に失敗しました', 'error');
                 });
@@ -1153,8 +1207,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                             masterData = parseAndApplyFilter(masterData, ctrl['抽出条件'], masters);
                         }
                         if (masterData && masterData.length > 0) {
-                            const excludeFields = ['表示順', '使用FLG', 'カテゴリ', '手数料率', '送料', '用途区分', '説明', 'デフォルト仕訳', '役割（タイプ）', '対象機能', '画面名称'];
-                            const keyField = Object.keys(masterData[0]).find(k => !excludeFields.includes(k));
+                            const excludeFields = ['表示順', '使用FLG', 'カテゴリ', '手数料率', '送料', '用途区分', '説明', 'デフォルト仕訳', '役割（タイプ）', '対象機能', '画面名称', '商品ID'];
+                            const priorityFields = ['品名', '完成品名', '名称', 'ステータス名称'];
+                            
+                            let keyField = priorityFields.find(k => masterData[0].hasOwnProperty(k));
+                            if (!keyField) {
+                                keyField = Object.keys(masterData[0]).find(k => !excludeFields.includes(k));
+                            }
+                            
                             if (keyField) options = masterData.map(r => r[keyField]);
                         }
                     }
@@ -2464,7 +2524,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <span>部材追加</span>
                         </button>
                     ` : ''}
-                    <button class="update-mini-btn" data-id="${id}" title="変更を保存">
+                    <button class="update-mini-btn" data-id="${id}" data-current-status="${item['ステータス'] || ''}" title="変更を保存">
                         <span>保存</span>
                         <ion-icon name="save-outline"></ion-icon>
                     </button>
@@ -2674,6 +2734,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         const card = btn.closest('.history-card');
         const statusSelect = card.querySelector('.status-select');
         const newStatus = statusSelect ? statusSelect.value : '';
+        const oldStatus = btn.getAttribute('data-current-status') || '';
+
+        // ステータス変更時の確認 (提案33)
+        if (newStatus !== oldStatus) {
+            const criticalStatuses = ['完了', 'キャンセル', '入庫済み', '発送済み'];
+            if (criticalStatuses.includes(newStatus)) {
+                if (!confirm(`ステータスを「${newStatus}」に変更してもよろしいですか？`)) {
+                    // キャンセルの場合は元の値に戻す
+                    if (statusSelect) statusSelect.value = oldStatus;
+                    return;
+                }
+            }
+        }
 
         // 追加: カード内の日付入力も取得
         const dateUpdates = {};
@@ -3701,26 +3774,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('master-edit-cancel').addEventListener('click', () => editModal.classList.remove('active'));
     }
 
-    function renderMasterList() {
+    function renderMasterList(mode = 'all') {
         const container = document.querySelector('.master-list-grid');
+        const title = document.getElementById('settings-title');
         if (!container) return;
 
+        if (title) {
+            title.textContent = (mode === 'master') ? 'マスタ管理' : 
+                              (mode === 'system') ? 'システム設定' : '設定・マスタ管理';
+        }
+
         const masterConfig = {
-            'M_商品': { title: '商品・パーツ', icon: 'cube-outline' },
-            'M_仕入先': { title: '仕入先・購入先', icon: 'business-outline' },
-            'M_売先': { title: '販売先(顧客)', icon: 'people-outline' },
-            'M_BOM': { title: '製造レシピ(BOM)', icon: 'construct-outline' },
-            'M_発送': { title: '配送・送料', icon: 'bus-outline' },
-            'M_経費品名': { title: '経費科目名', icon: 'receipt-outline' },
-            'M_支払': { title: '支払方法', icon: 'wallet-outline' },
-            'T_在庫集計': { title: 'アラート設定(在庫閾値)', icon: 'notifications-outline' },
-            'M_ステータス': { title: 'ステータス定義', icon: 'flag-outline' },
-            'M_画面制御': { title: '画面入力制御', icon: 'options-outline' }
+            'M_商品': { title: '商品・パーツ', icon: 'cube-outline', type: 'master' },
+            'M_仕入先': { title: '仕入先・購入先', icon: 'business-outline', type: 'master' },
+            'M_売先': { title: '販売先(顧客)', icon: 'people-outline', type: 'master' },
+            'M_BOM': { title: '製造レシピ(BOM)', icon: 'construct-outline', type: 'master' },
+            'M_発送': { title: '配送・送料', icon: 'bus-outline', type: 'master' },
+            'M_経費品名': { title: '経費科目名', icon: 'receipt-outline', type: 'master' },
+            'M_支払': { title: '支払方法', icon: 'wallet-outline', type: 'master' },
+            'M_ステータス': { title: 'ステータス定義', icon: 'flag-outline', type: 'system' },
+            'M_画面制御': { title: '画面入力制御', icon: 'options-outline', type: 'system' },
+            'T_在庫集計': { title: 'アラート設定(在庫閾値)', icon: 'notifications-outline', type: 'system' }
         };
 
         container.innerHTML = '';
         Object.keys(masterConfig).forEach(mkey => {
             const conf = masterConfig[mkey];
+            
+            // モードによるフィルタリング
+            if (mode !== 'all' && conf.type !== mode) return;
+
             const card = document.createElement('div');
             card.className = 'master-card';
             card.innerHTML = `

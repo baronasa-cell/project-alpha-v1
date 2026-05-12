@@ -2579,7 +2579,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <span>部材追加</span>
                         </button>
                     ` : ''}
-                    <button class="update-mini-btn" data-id="${id}" data-tab="${tab}" data-item="${itemName}" data-category="${item['区分'] || ''}" data-account="${item['仕訳'] || ''}" data-current-status="${item['ステータス'] || ''}" title="変更を保存">
+                    <button class="update-mini-btn" data-id="${id}" data-tab="${tab}" data-item="${itemName}" 
+                        data-category="${item['区分'] || ''}" data-account="${item['仕訳'] || ''}" 
+                        data-current-status="${item['ステータス'] || ''}" 
+                        data-quantity="${item['数量'] || item['製造数量'] || 0}"
+                        data-price="${item['価格'] || item['合計金額'] || item['販売価格'] || 0}"
+                        data-vendor="${item['仕入先'] || item['購入先'] || ''}"
+                        data-payment="${item['支払方法'] || ''}"
+                        data-buyer="${item['売先'] || ''}"
+                        data-shipping="${item['発送方法'] || ''}"
+                        data-is-personal="${(item['管理対象外'] == 1 || item['管理区分'] == 1) ? 'true' : 'false'}"
+                        title="変更を保存">
                         <span>保存</span>
                         <ion-icon name="save-outline"></ion-icon>
                     </button>
@@ -2934,11 +2944,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 finalData.account = dateUpdates['仕訳'] || btn.getAttribute('data-account');
             } else if (currentTab === 'manufacturing') {
                 finalData.date = dateUpdates['製造開始日'];
+                finalData.quantity = parseFloat(btn.getAttribute('data-quantity')) || 0;
             } else if (currentTab === 'sales') {
                 finalData.date = dateUpdates['販売開始日'];
                 finalData.buyer = dateUpdates['売先'] || btn.getAttribute('data-buyer');
                 finalData.shipping = dateUpdates['発送方法'] || btn.getAttribute('data-shipping');
                 finalData.shippingCost = parseFloat(dateUpdates['送料']) || 0;
+                finalData.quantity = parseFloat(btn.getAttribute('data-quantity')) || 0;
+                finalData.price = parseFloat(btn.getAttribute('data-price')) || 0;
+                finalData.type = btn.getAttribute('data-is-personal') === 'true' ? 'personal' : 'business';
             }
 
             const error = validateData(sheetName, finalData);

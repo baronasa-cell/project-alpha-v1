@@ -583,6 +583,20 @@ input:checked + .slider:before {
     appearance: none;
 }
 
+.date-input {
+    width: 100%;
+    min-width: 0;
+    font-size: 11px; /* iPhone SEなどの小画面でも収まるよう13pxから縮小 */
+    padding: 6px 4px; /* 左右のパディングを詰め、内容が溢れるのを防ぐ */
+    border-radius: 6px;
+    border: 1px solid rgba(0,0,0,0.15);
+    background: #fff;
+    height: 34px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
 .history-card-header .header-left {
     display: flex;
     align-items: center;

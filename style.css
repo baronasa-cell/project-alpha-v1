@@ -4054,3 +4054,84 @@ th.sticky-col {
 .barcode-badge ion-icon {
     font-size: 12px;
 }
+
+/* --- BOM Check Styles --- */
+.bom-check-container {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 20px;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.bom-check-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--dark-green);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.bom-check-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bom-item-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+}
+
+.bom-item-name {
+    font-weight: 500;
+    color: var(--text-main);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-right: 8px;
+}
+
+.bom-item-qty {
+    font-family: monospace;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    min-width: 80px;
+    text-align: right;
+}
+
+.bom-item-qty.ok {
+    background: rgba(22, 163, 74, 0.1);
+    color: var(--accent-green);
+}
+
+.bom-item-qty.ng {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.bom-status-summary {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(0,0,0,0.1);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.bom-status-summary.ok {
+    color: var(--accent-green);
+}
+
+.bom-status-summary.ng {
+    color: #ef4444;
+}

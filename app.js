@@ -150,6 +150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupToggleLogics();
         setupSettingsListeners();
         setupScannerListeners(); // スキャナーはデータロードを待たずに即座に有効化
+        setupInventoryCheckListeners();
 
         // ---- 2. System Initialization (Data Fetching) ----
         // 認証チェック (GAS環境以外の場合)
@@ -1248,6 +1249,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 在庫一覧の初期描画: フィルタ設定を考慮して描画
         applyStockFilters();
+
+        // 動的生成・差し替え後の要素にリスナーを再設定 (提案対応)
+        setupAutocompleteListeners();
+        setupInventoryCheckListeners();
     }
 
     /**
@@ -1494,6 +1499,78 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
         }
+    }
+
+    /**
+     * 製造・販売：入力変更時に在庫チェックを走らせるリスナー群
+     */
+    function setupInventoryCheckListeners() {
+        // 製造：BOM在庫チェック
+        const makeItem = document.getElementById('make-item');
+        const makeQty = document.getElementById('make-quantity');
+        
+        if (makeItem && !makeItem.dataset.bomBound) {
+            makeItem.dataset.bomBound = "true";
+            const bomCheckUpdate = () => {
+                if (typeof updateBOMCheck === 'function') {
+                    updateBOMCheck(makeItem.value, makeQty ? makeQty.value : '');
+                }
+            };
+            makeItem.addEventListener(makeItem.tagName === 'INPUT' ? 'input' : 'change', bomCheckUpdate);
+            if (makeQty) makeQty.addEventListener('input', bomCheckUpdate);
+        }
+
+        // 販売：単品在庫チェック
+        const saleItem = document.getElementById('sale-item');
+        const saleQty = document.getElementById('sale-quantity');
+
+        if (saleItem && !saleItem.dataset.stockBound) {
+            saleItem.dataset.stockBound = "true";
+            const saleCheckUpdate = () => {
+                if (typeof updateSaleStockCheck === 'function') {
+                    updateSaleStockCheck(saleItem.value, saleQty ? saleQty.value : '');
+                }
+            };
+            saleItem.addEventListener(saleItem.tagName === 'INPUT' ? 'input' : 'change', saleCheckUpdate);
+            if (saleQty) saleQty.addEventListener('input', saleCheckUpdate);
+        }
+    }
+
+    /**
+     * 販売時の在庫チェック (提案対応)
+     */
+    function updateSaleStockCheck(itemName, quantity) {
+        const container = document.getElementById('sale-stock-check-container');
+        const resultDiv = document.getElementById('sale-stock-check-result');
+        if (!container || !resultDiv) return;
+
+        if (!itemName || !quantity) {
+            container.style.display = 'none';
+            return;
+        }
+
+        const qty = parseFloat(quantity) || 0;
+        const stockItem = (currentMasters['T_在庫集計'] || []).find(s => s['品名'] === itemName);
+
+        if (!stockItem) {
+            // マスタにない場合は一旦非表示（個人用など）
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+        const currentQty = parseFloat(stockItem['現在庫数']) || 0;
+        const remaining = currentQty - qty;
+        const isOk = remaining >= 0;
+
+        resultDiv.innerHTML = `
+            <div class="bom-item-status">
+                <span class="bom-item-name">${itemName} (現在庫: ${currentQty})</span>
+                <span class="bom-item-qty ${isOk ? 'ok' : 'ng'}">
+                    ${isOk ? '在庫OK' : '在庫不足'} (残: ${remaining})
+                </span>
+            </div>
+        `;
     }
 
     function setupTransactionSubmitters() {
@@ -4542,6 +4619,64 @@ document.addEventListener('DOMContentLoaded', async () => {
         overlay.onclick = (e) => { if (e.target === overlay) close(); };
 
         setTimeout(() => overlay.classList.add('active'), 10);
+    }
+
+    /**
+     * 製造開始画面でのBOM在庫チェック (提案対応)
+     */
+    function updateBOMCheck(itemName, targetQtyStr) {
+        const container = document.getElementById('bom-check-container');
+        const resultList = document.getElementById('bom-check-result');
+        if (!container || !resultList) return;
+
+        const targetQty = parseFloat(targetQtyStr);
+        if (!itemName || isNaN(targetQty) || targetQty <= 0) {
+            container.style.display = 'none';
+            resultList.innerHTML = '';
+            return;
+        }
+
+        // BOMデータの取得 (M_BOM)
+        const bomData = (currentMasters['M_BOM'] || []).filter(b => b['品名'] === itemName);
+        if (bomData.length === 0) {
+            container.style.display = 'none';
+            resultList.innerHTML = '';
+            return;
+        }
+
+        container.style.display = 'block';
+        resultList.innerHTML = '';
+        let allOk = true;
+
+        bomData.forEach(bom => {
+            const componentName = bom['部品'];
+            const neededPerOne = parseFloat(bom['数量']) || 0;
+            const totalNeeded = neededPerOne * targetQty;
+            
+            // 現在庫の取得 (T_在庫集計)
+            const stockItem = (currentMasters['T_在庫集計'] || []).find(s => s['品名'] === componentName);
+            const currentStock = stockItem ? parseFloat(stockItem['現在庫数']) || 0 : 0;
+            
+            const isOk = currentStock >= totalNeeded;
+            if (!isOk) allOk = false;
+
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'bom-item-status';
+            itemDiv.innerHTML = `
+                <span class="bom-item-name">${componentName}</span>
+                <span class="bom-item-qty ${isOk ? 'ok' : 'ng'}">
+                    ${totalNeeded} / 在庫:${currentStock}
+                </span>
+            `;
+            resultList.appendChild(itemDiv);
+        });
+
+        const summary = document.createElement('div');
+        summary.className = `bom-status-summary ${allOk ? 'ok' : 'ng'}`;
+        summary.innerHTML = allOk ? 
+            '<ion-icon name="checkmark-circle" style="vertical-align: middle; margin-right: 4px;"></ion-icon> 在庫はすべて足りています' : 
+            '<ion-icon name="warning-outline" style="vertical-align: middle; margin-right: 4px;"></ion-icon> 一部の部品が不足しています';
+        resultList.appendChild(summary);
     }
 
 });

@@ -356,6 +356,18 @@
                             <option value="">--- データ取得中 ---</option>
                         </select>
                     </div>
+
+                    <!-- BOM在庫チェック結果表示用 (提案対応: 位置を上に移動) -->
+                    <div id="bom-check-container" class="bom-check-container" style="display: none; margin-top: -10px; margin-bottom: 16px;">
+                        <div class="bom-check-header">
+                            <ion-icon name="list-circle-outline"></ion-icon>
+                            <span>構成部品の在庫状況</span>
+                        </div>
+                        <div id="bom-check-result" class="bom-check-list">
+                            <!-- JSで動的に生成されます -->
+                        </div>
+                    </div>
+
                     <div class="input-group">
                         <label>備考</label>
                         <textarea id="make-note" placeholder="特記事項があれば入力"></textarea>
@@ -472,6 +484,13 @@
                         <div class="input-group">
                             <label>販売価格</label>
                             <input type="number" id="sale-price" placeholder="0">
+                        </div>
+                    </div>
+
+                    <!-- 販売在庫チェック結果表示用 (提案対応) -->
+                    <div id="sale-stock-check-container" class="bom-check-container" style="display: none; margin-top: -10px; margin-bottom: 16px;">
+                        <div id="sale-stock-check-result" class="bom-check-list">
+                            <!-- JSで動的に生成されます -->
                         </div>
                     </div>
 

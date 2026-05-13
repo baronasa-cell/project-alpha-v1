@@ -198,6 +198,13 @@ input:checked + .slider:before {
     gap: 12px;
 }
 
+@media (max-width: 360px) {
+    .input-grid {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+}
+
 .input-group {
     margin-bottom: 20px;
     min-width: 0; /* 防止: グリッド内での突き出し */
@@ -923,6 +930,7 @@ input:checked + .slider:before {
 .input-group select, 
 .input-group textarea {
     width: 100%;
+    min-width: 0; /* 防止: 突き出し */
     padding: 14px 16px;
     border-radius: 12px;
     border: 1px solid rgba(0,0,0,0.06);
@@ -930,6 +938,14 @@ input:checked + .slider:before {
     font-size: 15px;
     color: var(--text-main);
     transition: all 0.2s ease;
+}
+
+/* iPhone等の小画面で日付入力欄のパディングを調整 */
+@media (max-width: 400px) {
+    .input-group input[type="date"] {
+        padding: 14px 8px; /* 左右を詰めて表示領域を確保 */
+        font-size: 14px;
+    }
 }
 
 .input-group input:focus, 

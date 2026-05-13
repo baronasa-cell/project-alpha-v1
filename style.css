@@ -200,10 +200,12 @@ input:checked + .slider:before {
 
 @media (max-width: 400px) {
     .input-grid {
-        gap: 6px; /* 隙間をさらに詰める */
+        grid-template-columns: 1fr 1fr !important; /* 強制的に等分割 */
+        gap: 8px !important;
     }
     .input-grid > .input-group {
-        overflow: hidden; /* 内部要素の突き出しを物理的にカット */
+        min-width: 0 !important;
+        overflow: hidden;
     }
 }
 
@@ -945,22 +947,26 @@ input:checked + .slider:before {
 /* iPhone等の小画面で入力欄のサイズをフィルター等に合わせる */
 @media (max-width: 400px) {
     .input-group label {
-        font-size: 11px; /* ラベルを小さくして圧迫感を減らす */
+        font-size: 11px;
         margin-bottom: 4px;
     }
 
     .input-group input, 
     .input-group select {
-        padding: 8px 8px; /* フィルターに合わせてさらに縮小 */
-        font-size: 13px;    /* フィルターのサイズに合わせる */
-        height: 36px;      /* フィルターの高さ(36px)に完全一致させる */
+        padding: 6px 8px !important; /* フィルター(6px 10px)に合わせる */
+        font-size: 13px !important;
+        height: 34px !important;      /* フィルターの高さに合わせる */
         border-radius: 8px;
+        box-sizing: border-box !important;
     }
     
     .input-group input[type="date"] {
-        padding: 8px 2px; /* 日付はカレンダーアイコンがあるため、左右を極限まで詰める */
-        text-indent: 0;
-        letter-spacing: -1px; /* 文字間隔を詰めて収める */
+        padding-left: 4px !important;
+        padding-right: 2px !important;
+        -webkit-appearance: none;
+        display: block;
+        min-width: 0 !important;
+        width: 100% !important;
     }
 }
 

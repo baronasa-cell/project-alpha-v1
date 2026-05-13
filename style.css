@@ -200,7 +200,10 @@ input:checked + .slider:before {
 
 @media (max-width: 400px) {
     .input-grid {
-        gap: 8px; /* 隙間を詰めて余白を確保 */
+        gap: 6px; /* 隙間をさらに詰める */
+    }
+    .input-grid > .input-group {
+        overflow: hidden; /* 内部要素の突き出しを物理的にカット */
     }
 }
 
@@ -941,15 +944,23 @@ input:checked + .slider:before {
 
 /* iPhone等の小画面で入力欄のサイズをフィルター等に合わせる */
 @media (max-width: 400px) {
+    .input-group label {
+        font-size: 11px; /* ラベルを小さくして圧迫感を減らす */
+        margin-bottom: 4px;
+    }
+
     .input-group input, 
     .input-group select {
-        padding: 10px 10px; /* フィルター(6px 10px)に近いサイズ感に調整 */
+        padding: 8px 8px; /* フィルターに合わせてさらに縮小 */
         font-size: 13px;    /* フィルターのサイズに合わせる */
+        height: 36px;      /* フィルターの高さ(36px)に完全一致させる */
+        border-radius: 8px;
     }
     
     .input-group input[type="date"] {
-        padding: 10px 4px; /* 日付は特に横幅を取るためさらに詰める */
-        letter-spacing: -0.5px;
+        padding: 8px 2px; /* 日付はカレンダーアイコンがあるため、左右を極限まで詰める */
+        text-indent: 0;
+        letter-spacing: -1px; /* 文字間隔を詰めて収める */
     }
 }
 

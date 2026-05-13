@@ -37,7 +37,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true },
                 { name: '画像URL', visible: false, required: false },
                 { name: '保管場所', type: 'select', options: ['1_棚上：メイン', '2_棚中：サブ1', '3_棚下：梱包1', '4_押入上1：部品1', '5_押入上2：部品2', '6_押入上3：梱包2', '7_押入下1：サブ2', '8_押入下2：部品箱'], visible: true, editable: true, required: false },
-                { name: 'QR/バーコード', type: 'text', visible: true, editable: true, required: false }
+                { name: 'QR/バーコード', type: 'text', visible: true, editable: true, required: false },
+                { name: '販売単価', type: 'number', visible: true, editable: true, required: false }
             ]
         },
         'M_仕入先': {
@@ -1527,8 +1528,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (saleItem && !saleItem.dataset.stockBound) {
             saleItem.dataset.stockBound = "true";
             const saleCheckUpdate = () => {
+                const itemName = saleItem.value;
                 if (typeof updateSaleStockCheck === 'function') {
-                    updateSaleStockCheck(saleItem.value, saleQty ? saleQty.value : '');
+                    updateSaleStockCheck(itemName, saleQty ? saleQty.value : '');
+                }
+                
+                // 価格の自動補完 (提案35対応)
+                if (itemName) {
+                    const priceInput = document.getElementById('sale-price');
+                    if (priceInput && !priceInput.value) { // 空の場合のみ補完
+                        let suggestedPrice = null;
+                        
+                        // 1. 直近の販売履歴から検索
+                        const salesHistory = lastRawData ? lastRawData['T_販売'] : null;
+                        if (salesHistory && salesHistory.length > 1) {
+                            const headers = salesHistory[0];
+                            const nameIdx = headers.indexOf('品名');
+                            const priceIdx = headers.indexOf('販売価格') !== -1 ? headers.indexOf('販売価格') : headers.indexOf('価格');
+                            const statusIdx = headers.indexOf('ステータス');
+                            
+                            // 完了済みの最新レコードを探す
+                            for (let i = salesHistory.length - 1; i >= 1; i--) {
+                                const row = salesHistory[i];
+                                if (row[nameIdx] === itemName && row[statusIdx] === '完了' && row[priceIdx]) {
+                                    suggestedPrice = row[priceIdx];
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // 2. 履歴になければ商品マスタから取得
+                        if (!suggestedPrice && currentMasters && currentMasters['M_商品']) {
+                            const product = currentMasters['M_商品'].find(p => p['品名'] === itemName);
+                            if (product && product['販売単価']) {
+                                suggestedPrice = product['販売単価'];
+                            }
+                        }
+                        
+                        if (suggestedPrice) {
+                            priceInput.value = suggestedPrice;
+                            // 変更を通知 (バリデーション用)
+                            priceInput.dispatchEvent(new Event('change'));
+                        }
+                    }
                 }
             };
             saleItem.addEventListener(saleItem.tagName === 'INPUT' ? 'input' : 'change', saleCheckUpdate);
@@ -1787,6 +1829,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     inputs.forEach(input => {
                         input.value = '';
                     });
+                    
+                    // 販売タブの場合は数量を1にリセット (提案35)
+                    if (sheet === 'T_販売') {
+                        const qtyInput = document.getElementById('sale-quantity');
+                        if (qtyInput) qtyInput.value = '1';
+                    }
 
                     // 商品写真プレビューもクリア
                     const previews = tabContent.querySelectorAll('.input-image-preview');

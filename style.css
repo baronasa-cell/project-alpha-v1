@@ -198,10 +198,9 @@ input:checked + .slider:before {
     gap: 12px;
 }
 
-@media (max-width: 360px) {
+@media (max-width: 400px) {
     .input-grid {
-        grid-template-columns: 1fr;
-        gap: 0;
+        gap: 8px; /* 隙間を詰めて余白を確保 */
     }
 }
 
@@ -940,11 +939,17 @@ input:checked + .slider:before {
     transition: all 0.2s ease;
 }
 
-/* iPhone等の小画面で日付入力欄のパディングを調整 */
+/* iPhone等の小画面で入力欄のサイズをフィルター等に合わせる */
 @media (max-width: 400px) {
+    .input-group input, 
+    .input-group select {
+        padding: 10px 10px; /* フィルター(6px 10px)に近いサイズ感に調整 */
+        font-size: 13px;    /* フィルターのサイズに合わせる */
+    }
+    
     .input-group input[type="date"] {
-        padding: 14px 8px; /* 左右を詰めて表示領域を確保 */
-        font-size: 14px;
+        padding: 10px 4px; /* 日付は特に横幅を取るためさらに詰める */
+        letter-spacing: -0.5px;
     }
 }
 
@@ -4101,7 +4106,8 @@ th.sticky-col {
 
 .bom-item-status {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
+    flex-wrap: wrap;
     align-items: center;
     font-size: 12px;
 }

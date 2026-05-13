@@ -1533,42 +1533,49 @@ document.addEventListener('DOMContentLoaded', async () => {
                     updateSaleStockCheck(itemName, saleQty ? saleQty.value : '');
                 }
                 
-                // 価格の自動補完 (提案35対応)
+                // 価格の自動補完 (提案35対応 & バグ修正)
                 if (itemName) {
                     const priceInput = document.getElementById('sale-price');
-                    if (priceInput && !priceInput.value) { // 空の場合のみ補完
-                        let suggestedPrice = null;
-                        
-                        // 1. 直近の販売履歴から検索
-                        const salesHistory = lastRawData ? lastRawData['T_販売'] : null;
-                        if (salesHistory && salesHistory.length > 1) {
-                            const headers = salesHistory[0];
-                            const nameIdx = headers.indexOf('品名');
-                            const priceIdx = headers.indexOf('販売価格') !== -1 ? headers.indexOf('販売価格') : headers.indexOf('価格');
-                            const statusIdx = headers.indexOf('ステータス');
+                    if (priceInput) {
+                        // 品名が変更された、または価格が空の場合に補完を実行
+                        const isItemChanged = itemName !== saleItem.dataset.lastAutoItem;
+                        const isPriceEmpty = !priceInput.value;
+                        const isAutoPrice = priceInput.value === priceInput.dataset.lastAutoPrice;
+
+                        if (isItemChanged || isPriceEmpty || isAutoPrice) {
+                            let suggestedPrice = null;
                             
-                            // 完了済みの最新レコードを探す
-                            for (let i = salesHistory.length - 1; i >= 1; i--) {
-                                const row = salesHistory[i];
-                                if (row[nameIdx] === itemName && row[statusIdx] === '完了' && row[priceIdx]) {
-                                    suggestedPrice = row[priceIdx];
-                                    break;
+                            // 1. 直近の販売履歴から検索
+                            const salesHistory = lastRawData ? lastRawData['T_販売'] : null;
+                            if (salesHistory && salesHistory.length > 1) {
+                                const headers = salesHistory[0];
+                                const nameIdx = headers.indexOf('品名');
+                                const priceIdx = headers.indexOf('販売価格') !== -1 ? headers.indexOf('販売価格') : headers.indexOf('価格');
+                                const statusIdx = headers.indexOf('ステータス');
+                                
+                                for (let i = salesHistory.length - 1; i >= 1; i--) {
+                                    const row = salesHistory[i];
+                                    if (row[nameIdx] === itemName && row[statusIdx] === '完了' && row[priceIdx]) {
+                                        suggestedPrice = row[priceIdx];
+                                        break;
+                                    }
                                 }
                             }
-                        }
-                        
-                        // 2. 履歴になければ商品マスタから取得
-                        if (!suggestedPrice && currentMasters && currentMasters['M_商品']) {
-                            const product = currentMasters['M_商品'].find(p => p['品名'] === itemName);
-                            if (product && product['販売単価']) {
-                                suggestedPrice = product['販売単価'];
+                            
+                            // 2. 履歴になければ商品マスタから取得
+                            if (!suggestedPrice && currentMasters && currentMasters['M_商品']) {
+                                const product = currentMasters['M_商品'].find(p => p['品名'] === itemName);
+                                if (product && product['販売単価']) {
+                                    suggestedPrice = product['販売単価'];
+                                }
                             }
-                        }
-                        
-                        if (suggestedPrice) {
-                            priceInput.value = suggestedPrice;
-                            // 変更を通知 (バリデーション用)
-                            priceInput.dispatchEvent(new Event('change'));
+                            
+                            if (suggestedPrice) {
+                                priceInput.value = suggestedPrice;
+                                priceInput.dataset.lastAutoPrice = suggestedPrice; // 自動入力値を記憶
+                                saleItem.dataset.lastAutoItem = itemName; // 補完時の品名を記憶
+                                priceInput.dispatchEvent(new Event('change'));
+                            }
                         }
                     }
                 }
@@ -1595,7 +1602,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const stockItem = (currentMasters['T_在庫集計'] || []).find(s => s['品名'] === itemName);
 
         if (!stockItem) {
-            // マスタにない場合は一旦非表示（個人用など）
             container.style.display = 'none';
             return;
         }
@@ -1605,11 +1611,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const remaining = currentQty - qty;
         const isOk = remaining >= 0;
 
+        // 案1: 品名を除外したコンパクトな表示
         resultDiv.innerHTML = `
-            <div class="bom-item-status">
-                <span class="bom-item-name">${itemName} (現在庫: ${currentQty})</span>
-                <span class="bom-item-qty ${isOk ? 'ok' : 'ng'}">
-                    ${isOk ? '在庫OK' : '在庫不足'} (残: ${remaining})
+            <div class="bom-item-status" style="font-weight: 600;">
+                <span class="bom-item-qty ${isOk ? 'ok' : 'ng'}" style="flex: none; min-width: auto; padding: 2px 6px;">
+                    <ion-icon name="${isOk ? 'checkmark-circle' : 'warning'}" style="vertical-align: middle; margin-right: 4px;"></ion-icon>
+                    ${isOk ? '在庫OK' : '在庫不足'}
+                </span>
+                <span style="font-size: 11px; color: var(--text-muted); margin-left: 8px;">
+                    (現在庫: ${currentQty} → ${isOk ? '残り' : '不足'}: ${Math.abs(remaining)})
                 </span>
             </div>
         `;

@@ -4012,23 +4012,37 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isCritical = qty === 0;
             const cardClass = isCritical ? 'critical' : 'warning';
 
-            // 進行中の取引があるか確認 (件数ではなく合計数量を表示するように変更)
+            // 進行中の取引があるか確認 (Proposal 20/24 拡張)
             const mfgTotal = activeMfg.filter(m => {
                 const name = (m['完成品名'] || m['品名'] || m['商品名'] || '').toString().trim();
-                return name === itemName.trim();
+                return name === itemName.trim() && !['完了', 'キャンセル'].includes(m['ステータス']);
             }).reduce((sum, m) => sum + (parseFloat(m['数量'] || m['製造数量']) || 0), 0);
             
             const purTotal = activePur.filter(p => {
-                const name = (p['品名'] || p['商品名'] || p['完成品名'] || '').toString().trim();
-                return name === itemName.trim();
+                const name = (p['品名'] || p['商品名'] || '').toString().trim();
+                // 「注文済み」のみを仕入中とする（購入予定は別途集計）
+                return name === itemName.trim() && p['ステータス'] === '注文済み';
             }).reduce((sum, p) => sum + (parseFloat(p['数量']) || 0), 0);
+
+            // 購入予定の集計 (仕入・経費の両方を対象)
+            const activeExp = lastHistoryData.history['T_経費'] || [];
+            const plannedTotal = [...activePur, ...activeExp].filter(item => {
+                const name = (item['品名'] || '').toString().trim();
+                return name === itemName.trim() && item['ステータス'] === '購入予定';
+            }).reduce((sum, item) => sum + (parseFloat(item['数量']) || 0), 0);
             
             let statusBadge = '';
+            let badges = [];
             if (mfgTotal > 0) {
-                statusBadge = `<span class="alert-processing-badge mfg"><ion-icon name="hammer-outline"></ion-icon>製造中(${mfgTotal})</span>`;
-            } else if (purTotal > 0) {
-                statusBadge = `<span class="alert-processing-badge pur"><ion-icon name="cart-outline"></ion-icon>仕入中(${purTotal})</span>`;
+                badges.push(`<span class="alert-processing-badge mfg"><ion-icon name="hammer-outline"></ion-icon>製造中(${mfgTotal})</span>`);
             }
+            if (purTotal > 0) {
+                badges.push(`<span class="alert-processing-badge pur"><ion-icon name="cart-outline"></ion-icon>仕入中(${purTotal})</span>`);
+            }
+            if (plannedTotal > 0) {
+                badges.push(`<span class="alert-processing-badge planned"><ion-icon name="calendar-outline"></ion-icon>購入予定(${plannedTotal})</span>`);
+            }
+            statusBadge = badges.join('');
 
             // M_商品からカテゴリ情報を取得
             const product = (currentMasters['M_商品'] || []).find(m => {

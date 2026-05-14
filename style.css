@@ -3936,6 +3936,12 @@ th.sticky-col {
     border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
+.alert-processing-badge.planned {
+    background: rgba(245, 158, 11, 0.15); /* Amber/Orange */
+    color: #92400e;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
 /* 蝨ｨ蠎ｫ蛻�ｌ(critical)繧ｫ繝ｼ繝牙�縺ｧ縺ｮ陦ｨ遉ｺ */
 .alert-card.critical .alert-processing-badge {
     background: rgba(255, 255, 255, 0.95);

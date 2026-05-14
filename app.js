@@ -24,6 +24,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let html5QrCode = null; // Scanner instance
 
+    // 買い物カゴ (Proposal 38)
+    window.registrationBasket = [];
+
+    // 買い物カゴ (Proposal 38)
+    window.registrationBasket = [];
+
     // マスタ編集用スキーマ定義 (提案7・マスター管理強化)
     const MASTER_SCHEMAS = {
         'M_商品': {
@@ -4912,5 +4918,197 @@ document.addEventListener('DOMContentLoaded', async () => {
             '<ion-icon name="warning-outline" style="vertical-align: middle; margin-right: 4px;"></ion-icon> 一部の部品が不足しています';
         resultList.appendChild(summary);
     }
+
+    // --- Registration Basket Logic (Proposal 38) ---
+
+    /**
+     * 現在の入力内容を買い物カゴに追加
+     */
+    window.addItemToBasket = function(type) {
+        const prefix = type === 'purchase' ? 'buy' : 'exp';
+        const data = {};
+        
+        // 共通・個別項目の取得
+        if (type === 'purchase') {
+            data.date = document.getElementById('purchase-date').value;
+            data.status = document.getElementById('buy-status-entry').value;
+            data.vendor = document.getElementById('buy-vendor').value;
+            data.item = document.getElementById('buy-item').value;
+            data.price = parseFloat(document.getElementById('buy-price').value) || 0;
+            data.quantity = parseFloat(document.getElementById('buy-quantity').value) || 0;
+            data.payment = document.getElementById('buy-payment').value;
+            data.category = document.getElementById('buy-category').value;
+            data.note = document.getElementById('buy-note').value;
+        } else {
+            data.date = document.getElementById('expense-date').value;
+            data.status = document.getElementById('exp-status-entry').value;
+            data.account = document.getElementById('exp-account').value;
+            data.vendor = document.getElementById('exp-vendor').value;
+            data.item = document.getElementById('exp-item').value;
+            data.price = parseFloat(document.getElementById('exp-price').value) || 0;
+            data.quantity = parseFloat(document.getElementById('exp-quantity').value) || 0;
+            data.payment = document.getElementById('exp-payment').value;
+            data.receipt = document.getElementById('exp-receipt').checked ? 1 : 0;
+            data.isStock = document.getElementById('exp-is-stock').checked ? 1 : 0;
+            data.note = document.getElementById('exp-note').value;
+        }
+
+        // 基本バリデーション
+        if (!data.item || data.price <= 0 || data.quantity <= 0) {
+            alert("品名、価格、数量を正しく入力してください。");
+            return;
+        }
+
+        // カゴに追加
+        window.registrationBasket.push({ type, data });
+        
+        // 入力欄のクリア（共通項目以外）
+        document.getElementById(`${prefix}-item`).value = "";
+        document.getElementById(`${prefix}-price`).value = "";
+        document.getElementById(`${prefix}-quantity`).value = "";
+        document.getElementById(`${prefix}-note`).value = "";
+        const previewEl = document.getElementById(`${prefix}-item-preview`);
+        if (previewEl) previewEl.innerHTML = "";
+
+        renderBasket();
+        
+        // フィードバック
+        const btn = document.getElementById(`${prefix}-add-basket`);
+        if (btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<ion-icon name="checkmark-done-outline"></ion-icon> 追加しました';
+            setTimeout(() => { btn.innerHTML = originalText; }, 1500);
+        }
+    };
+
+    /**
+     * 買い物カゴの内容をレンダリング
+     */
+    function renderBasket() {
+        const sections = ['purchase', 'expense'];
+        const basket = window.registrationBasket;
+        const total = basket.reduce((sum, item) => sum + item.data.price, 0);
+
+        sections.forEach(tab => {
+            const container = document.getElementById(`basket-section-${tab}`);
+            const list = document.getElementById(`basket-list-${tab}`);
+            const totalEl = document.getElementById(`basket-total-${tab}`);
+            if (!container || !list || !totalEl) return;
+
+            if (basket.length === 0) {
+                container.classList.remove('active');
+                return;
+            }
+
+            container.classList.add('active');
+            totalEl.textContent = `¥${total.toLocaleString()}`;
+
+            list.innerHTML = basket.map((item, index) => `
+                <div class="basket-item">
+                    <div class="basket-item-info">
+                        <div class="basket-item-name">
+                            <span class="basket-badge ${item.type}">${item.type === 'purchase' ? '仕入' : '経費'}</span>
+                            ${item.data.item}
+                        </div>
+                        <div class="basket-item-details">
+                            <span>単価: ¥${Math.round(item.data.price / item.data.quantity).toLocaleString()}</span>
+                            <span>数量: ${item.data.quantity}</span>
+                        </div>
+                    </div>
+                    <div class="basket-item-price">¥${item.data.price.toLocaleString()}</div>
+                    <div class="basket-item-remove" onclick="removeFromBasket(${index})">
+                        <ion-icon name="close-circle-outline"></ion-icon>
+                    </div>
+                </div>
+            `).join('');
+        });
+    }
+
+    /**
+     * カゴからアイテムを削除
+     */
+    window.removeFromBasket = function(index) {
+        window.registrationBasket.splice(index, 1);
+        renderBasket();
+    };
+
+    /**
+     * カゴを空にする
+     */
+    window.clearBasket = function() {
+        if (!confirm("リストの内容をすべて破棄しますか？")) return;
+        window.registrationBasket = [];
+        renderBasket();
+    };
+
+    /**
+     * 一括登録を実行
+     */
+    window.submitBulkRegistration = async function() {
+        if (window.registrationBasket.length === 0) return;
+        
+        const total = window.registrationBasket.reduce((sum, item) => sum + item.data.price, 0);
+        if (!confirm(`${window.registrationBasket.length}件の明細（合計 ¥${total.toLocaleString()}）を一括登録しますか？`)) return;
+
+        setLoading(true, "一括登録中...");
+        try {
+            const result = await fetchAPI('registerBulk', { 
+                transactions: window.registrationBasket,
+                scope: 'all'
+            });
+
+            if (result.status === 'success') {
+                showToast("一括登録が完了しました。");
+                window.registrationBasket = [];
+                renderBasket();
+                
+                // 履歴・在庫データの更新フローを既存処理(handleSubmission)と同期
+                if (result.historyData && result.historyData.rawData) {
+                    // 生データをマージ
+                    lastRawData = Object.assign({}, lastRawData, result.historyData.rawData);
+                    // データを加工・再集計
+                    const processed = processClientData(lastRawData);
+                    lastHistoryData = processed;
+                    // 各履歴画面を描画
+                    renderAllHistory(processed);
+                    // 在庫一覧UIを更新
+                    refreshInventoryUI();
+                }
+
+                // 新規マスタ追加があった場合
+                if (result.masterAdded) {
+                    initSystem();
+                }
+                
+                // フォームをリセット（共通項目も含む）
+                const buyVendor = document.getElementById('buy-vendor');
+                if (buyVendor) buyVendor.value = "";
+                const expVendor = document.getElementById('exp-vendor');
+                if (expVendor) expVendor.value = "";
+                
+            } else {
+                showToast("登録エラー: " + result.message, 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("通信エラー: " + e.toString(), 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // イベントリスナーの設定
+    const buyAddBtn = document.getElementById('buy-add-basket');
+    if (buyAddBtn) buyAddBtn.onclick = () => window.addItemToBasket('purchase');
+    
+    const expAddBtn = document.getElementById('exp-add-basket');
+    if (expAddBtn) expAddBtn.onclick = () => window.addItemToBasket('expense');
+    
+    document.querySelectorAll('.bulk-submit-btn').forEach(btn => {
+        btn.onclick = window.submitBulkRegistration;
+    });
+    document.querySelectorAll('.bulk-clear-btn').forEach(btn => {
+        btn.onclick = window.clearBasket;
+    });
 
 });

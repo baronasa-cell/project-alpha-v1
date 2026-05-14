@@ -3443,6 +3443,147 @@ th.sticky-col {
     font-size: 18px;
 }
 
+/* --- Registration Basket (Proposal 38) --- */
+.basket-section {
+    margin-top: 24px;
+    border-top: 2px dashed rgba(0,0,0,0.05);
+    padding-top: 24px;
+    display: none; /* 初期状態は非表示 */
+}
+
+.basket-section.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+.basket-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.basket-item {
+    background: white;
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid rgba(0,0,0,0.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.basket-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+
+.basket-item-name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-main);
+}
+
+.basket-item-details {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.basket-badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.basket-badge.purchase {
+    background: rgba(37, 99, 235, 0.1);
+    color: #2563eb;
+}
+
+.basket-badge.expense {
+    background: rgba(220, 38, 38, 0.1);
+    color: #dc2626;
+}
+
+.basket-item-price {
+    font-weight: 800;
+    font-size: 15px;
+    color: var(--text-main);
+    margin-left: 12px;
+}
+
+.basket-item-remove {
+    margin-left: 12px;
+    color: #ef4444;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.basket-footer {
+    background: var(--light-green);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.basket-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0 4px;
+}
+
+.basket-total label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.basket-total .val {
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--accent-green);
+}
+
+.btn-group-horizontal {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-group-horizontal .primary-btn {
+    flex: 1;
+}
+
+.secondary-btn {
+    background: white;
+    color: var(--text-main);
+    border: 1px solid rgba(0,0,0,0.1);
+    font-weight: 600;
+}
+
+.secondary-btn:active {
+    background: #f9fafb;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 
 
 /* --- iPhone 12 mini (375px) Optimization --- */

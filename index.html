@@ -307,7 +307,32 @@
                         <label>備考</label>
                         <textarea id="buy-note" placeholder="備考を入力"></textarea>
                     </div>
-                    <button id="buy-submit" class="primary-btn">登録</button>
+                    <div class="submit-group btn-group-horizontal">
+                        <button id="buy-submit" class="primary-btn">単発で登録</button>
+                        <button id="buy-add-basket" class="primary-btn secondary-btn" style="background: var(--light-green); color: var(--accent-green); border: none;">
+                            <ion-icon name="add-circle-outline"></ion-icon> リストに追加
+                        </button>
+                    </div>
+
+                    <!-- 買い物カゴエリア (Proposal 38) -->
+                    <div id="basket-section-purchase" class="basket-section">
+                        <h3 style="font-size: 13px; margin-bottom: 12px; color: var(--text-muted);">
+                            <ion-icon name="list-outline"></ion-icon> 一括登録待ちリスト
+                        </h3>
+                        <div id="basket-list-purchase" class="basket-list">
+                            <!-- JSで挿入 -->
+                        </div>
+                        <div class="basket-footer">
+                            <div class="basket-total">
+                                <label>レシート/注文 合計</label>
+                                <span class="val" id="basket-total-purchase">¥0</span>
+                            </div>
+                            <div class="btn-group-horizontal">
+                                <button class="primary-btn bulk-submit-btn" style="background: var(--accent-green);">一括登録する</button>
+                                <button class="primary-btn secondary-btn bulk-clear-btn">破棄</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="history-section" id="purchase-history">
@@ -663,7 +688,32 @@
                         <label>備考</label>
                         <textarea id="exp-note" placeholder="詳細を入力"></textarea>
                     </div>
-                    <button id="exp-submit" class="primary-btn">登録</button>
+                    <div class="submit-group btn-group-horizontal">
+                        <button id="exp-submit" class="primary-btn">単発で登録</button>
+                        <button id="exp-add-basket" class="primary-btn secondary-btn" style="background: var(--light-green); color: var(--accent-green); border: none;">
+                            <ion-icon name="add-circle-outline"></ion-icon> リストに追加
+                        </button>
+                    </div>
+
+                    <!-- 買い物カゴエリア (Proposal 38) -->
+                    <div id="basket-section-expense" class="basket-section">
+                        <h3 style="font-size: 13px; margin-bottom: 12px; color: var(--text-muted);">
+                            <ion-icon name="list-outline"></ion-icon> 一括登録待ちリスト
+                        </h3>
+                        <div id="basket-list-expense" class="basket-list">
+                            <!-- JSで挿入 -->
+                        </div>
+                        <div class="basket-footer">
+                            <div class="basket-total">
+                                <label>レシート/注文 合計</label>
+                                <span class="val" id="basket-total-expense">¥0</span>
+                            </div>
+                            <div class="btn-group-horizontal">
+                                <button class="primary-btn bulk-submit-btn" style="background: var(--accent-green);">一括登録する</button>
+                                <button class="primary-btn secondary-btn bulk-clear-btn">破棄</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="history-section" id="expense-history">

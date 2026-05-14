@@ -3116,6 +3116,11 @@ input:checked + .slider:before {
     color: var(--dark-green);
 }
 
+.alert-btn.expense {
+    background: rgba(239, 68, 68, 0.08);
+    color: #dc2626;
+}
+
 .alert-btn:active {
     transform: scale(0.92);
 }
@@ -3382,6 +3387,45 @@ th.sticky-col {
 
 .icon-input-btn:active {
     transform: scale(0.9);
+}
+
+/* クイック検索モーダル用スタイル */
+.quick-search-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.quick-search-item {
+    padding: 14px 16px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.05);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.quick-search-item:active {
+    background: var(--light-green);
+    transform: scale(0.98);
+}
+
+.quick-search-item ion-icon {
+    color: var(--text-muted);
+    font-size: 18px;
+}
+
+.input-with-icon .icon-input-btn.mini-search-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    font-size: 18px;
 }
 
 

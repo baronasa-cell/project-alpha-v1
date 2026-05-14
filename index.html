@@ -872,6 +872,30 @@
         </div>
     </div>
 
+    <!-- クイック検索モーダル (Proposal 37) -->
+    <div id="quick-search-modal" class="modal-overlay" style="z-index: 1200;">
+        <div class="modal-container glass-card" style="height: 85vh; max-height: 85vh; width: 95%; max-width: 500px;">
+            <header class="modal-header">
+                <div class="header-left">
+                    <ion-icon name="search-outline" style="color: var(--accent-green); font-size: 20px;"></ion-icon>
+                    <h2 id="quick-search-title">項目を選択</h2>
+                </div>
+                <button id="quick-search-close-btn" class="icon-btn">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </header>
+            <div class="modal-content" style="padding: 12px; display: flex; flex-direction: column;">
+                <div class="search-bar mini" style="margin-bottom: 12px;">
+                    <ion-icon name="filter-outline"></ion-icon>
+                    <input type="text" id="quick-search-input" placeholder="キーワードで絞り込み...">
+                </div>
+                <div id="quick-search-list" class="quick-search-list" style="flex: 1; overflow-y: auto;">
+                    <!-- JSでリストが生成されます -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- QRスキャナーオーバーレイ (Body直下へ移動) -->
     <div id="scanner-overlay" class="scanner-overlay" style="display: none;">
         <div class="scanner-container">

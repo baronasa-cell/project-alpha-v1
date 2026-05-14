@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { name: '商品ID', type: 'text', visible: true, editable: false, required: true },
                 { name: '表示順', type: 'number', visible: true, editable: true, required: true },
                 { name: '品名', type: 'text', visible: true, editable: false, required: true },
-                { name: 'カテゴリ', type: 'select', visible: true, editable: true, options: ['パーツ', '単体商品', '商品', '経費', '製造'], required: true },
+                { name: 'カテゴリ', type: 'select', visible: true, editable: true, options: ['パーツ', 'パーツ2', '単体商品', '商品', '経費'], required: true },
                 { name: '説明', type: 'textarea', visible: true, editable: true, required: false },
                 { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true },
                 { name: '画像URL', visible: false, required: false },
@@ -155,6 +155,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // ---- 2. System Initialization (Data Fetching) ----
         // 認証チェック (GAS環境以外の場合)
+        // クイック検索モーダルのイベント設定
+        const qsCloseBtn = document.getElementById('quick-search-close-btn');
+        if (qsCloseBtn) qsCloseBtn.onclick = closeQuickSearch;
+        
+        const qsInput = document.getElementById('quick-search-input');
+        if (qsInput) qsInput.oninput = window.applyQuickSearchFilter;
+
+        // クイック検索モーダル外クリックで閉じる
+        window.onclick = function(event) {
+            const modal = document.getElementById('quick-search-modal');
+            if (event.target == modal) {
+                closeQuickSearch();
+            }
+        };
+
+        // 初期化完了後に検索ボタンを配置
+        initQuickSearchButtons();
         if (typeof google === 'undefined' && !currentAuthKey) {
             setupLoginHandlers();
             showLoginModal();
@@ -1364,6 +1381,94 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         }
+    }
+
+    /**
+     * クイック検索モーダルを開く (Proposal 37)
+     */
+    window.openQuickSearch = function (inputId) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+
+        const listId = input.getAttribute('list');
+        const datalist = document.getElementById(listId);
+        if (!datalist) return;
+
+        const options = Array.from(datalist.options).map(o => o.value);
+        const title = input.previousElementSibling ? input.previousElementSibling.textContent : "項目を選択";
+
+        document.getElementById('quick-search-title').textContent = title;
+        document.getElementById('quick-search-input').value = "";
+        window.currentQuickSearchInputId = inputId;
+        window.currentQuickSearchOptions = options;
+
+        renderQuickSearchList(options);
+        document.getElementById('quick-search-modal').classList.add('active');
+        setTimeout(() => document.getElementById('quick-search-input').focus(), 100);
+    };
+
+    /**
+     * クイック検索リストをレンダリング
+     */
+    function renderQuickSearchList(options) {
+        const container = document.getElementById('quick-search-list');
+        container.innerHTML = options.map(opt => `
+            <div class="quick-search-item" onclick="selectQuickSearchItem('${opt.replace(/'/g, "\\'")}')">
+                <span>${opt}</span>
+                <ion-icon name="chevron-forward-outline"></ion-icon>
+            </div>
+        `).join('');
+    }
+
+    /**
+     * クイック検索のフィルタリング
+     */
+    window.applyQuickSearchFilter = function () {
+        const keyword = document.getElementById('quick-search-input').value.toLowerCase();
+        const filtered = window.currentQuickSearchOptions.filter(opt => 
+            opt.toLowerCase().includes(keyword)
+        );
+        renderQuickSearchList(filtered);
+    };
+
+    /**
+     * 項目選択
+     */
+    window.selectQuickSearchItem = function (value) {
+        const input = document.getElementById(window.currentQuickSearchInputId);
+        if (input) {
+            input.value = value;
+            input.dispatchEvent(new Event('input'));
+            input.dispatchEvent(new Event('change'));
+        }
+        closeQuickSearch();
+    };
+
+    function closeQuickSearch() {
+        document.getElementById('quick-search-modal').classList.remove('active');
+    }
+
+    /**
+     * 全てのサジェスト入力欄に検索ボタンを付与
+     */
+    function initQuickSearchButtons() {
+        document.querySelectorAll('input[list]').forEach(input => {
+            // 既にボタンがあるか、特定の除外対象（マスタ編集用など）でなければ追加
+            if (input.parentElement.classList.contains('input-with-icon')) return;
+            if (input.id.startsWith('master-')) return; 
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'input-with-icon';
+            input.parentNode.insertBefore(wrapper, input);
+            wrapper.appendChild(input);
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'icon-input-btn mini-search-btn';
+            btn.innerHTML = '<ion-icon name="search-outline"></ion-icon>';
+            btn.onclick = () => window.openQuickSearch(input.id);
+            wrapper.appendChild(btn);
+        });
     }
 
     function toggleSaleItemInput(isPersonal) {
@@ -3933,9 +4038,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             const category = product ? product['カテゴリ'] : "";
 
             const isMade = (category === '商品' || category === 'パーツ2');
-            const actionBtn = isMade ?
-                `<button class="alert-btn make" onclick="jumpToTab('manufacturing', '${itemName}')"><ion-icon name="hammer-outline"></ion-icon>製造へ</button>` :
-                `<button class="alert-btn purchase" onclick="jumpToTab('purchase', '${itemName}')"><ion-icon name="cart-outline"></ion-icon>仕入へ</button>`;
+            const isExpense = (category === '経費');
+            
+            let actionBtn = '';
+            if (isMade) {
+                actionBtn = `<button class="alert-btn make" onclick="jumpToTab('manufacturing', '${itemName}')"><ion-icon name="hammer-outline"></ion-icon>製造へ</button>`;
+            } else if (isExpense) {
+                actionBtn = `<button class="alert-btn expense" onclick="jumpToTab('expense', '${itemName}')"><ion-icon name="cash-outline"></ion-icon>経費へ</button>`;
+            } else {
+                actionBtn = `<button class="alert-btn purchase" onclick="jumpToTab('purchase', '${itemName}')"><ion-icon name="cart-outline"></ion-icon>仕入へ</button>`;
+            }
 
             html += `
                 <div class="alert-card ${cardClass}">
@@ -3960,7 +4072,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     /**
-     * 特定のタブへ遷移し、品目を選択済みにする
+     * 特定のタブへ遷移し、品目を選択済みにする (Proposal 36 拡張)
      */
     window.jumpToTab = function (tabId, itemName) {
         const navItem = document.querySelector(`.nav-item[data-target="${tabId}"]`);
@@ -3969,10 +4081,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // タブ切り替えのアニメーション待ち
             setTimeout(() => {
-                const map = { purchase: 'buy-item', manufacturing: 'make-item' };
-                const el = document.getElementById(map[tabId]);
+                const map = { purchase: 'buy-item', manufacturing: 'make-item', expense: 'exp-item' };
+                const inputId = map[tabId];
+                const el = document.getElementById(inputId);
                 if (el) {
                     el.value = itemName;
+                    
+                    // 履歴から詳細データを自動セット (Proposal 36)
+                    autoPopulateFromHistory(tabId, itemName);
+
                     // 入力イベントを発火させて連動するロジック（プレビュー表示など）を動かす
                     el.dispatchEvent(new Event('input'));
                     el.dispatchEvent(new Event('change'));
@@ -3981,9 +4098,50 @@ document.addEventListener('DOMContentLoaded', async () => {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     el.focus();
                 }
-            }, 100);
+            }, 150);
         }
     };
+
+    /**
+     * 履歴から最新の値を自動補完する (Proposal 36共通)
+     */
+    function autoPopulateFromHistory(tabId, itemName) {
+        if (tabId === 'purchase' || tabId === 'expense') {
+            const historyKey = tabId === 'purchase' ? 'T_仕入' : 'T_経費';
+            const historyData = (window.lastHistoryData && window.lastHistoryData.history) ? window.lastHistoryData.history[historyKey] : [];
+            const latest = historyData.find(r => r['品名'] === itemName);
+
+            if (latest) {
+                if (tabId === 'purchase') {
+                    setElementValue('buy-vendor', latest['仕入先']);
+                    setElementValue('buy-price', latest['価格']);
+                    setElementValue('buy-quantity', latest['数量']);
+                    setElementValue('buy-payment', latest['支払方法']);
+                    setElementValue('buy-category', latest['区分']);
+                } else if (tabId === 'expense') {
+                    setElementValue('exp-account', latest['仕訳']);
+                    setElementValue('exp-vendor', latest['購入先']);
+                    setElementValue('exp-price', latest['合計金額']);
+                    setElementValue('exp-quantity', latest['数量']);
+                    setElementValue('exp-payment', latest['支払方法']);
+                    const manageFlag = document.getElementById('exp-is-stock');
+                    if (manageFlag) manageFlag.checked = (latest['管理対象'] == 1);
+                }
+            }
+        } else if (tabId === 'manufacturing') {
+            setElementValue('make-quantity', "1");
+        }
+    }
+
+    // ヘルパー: 要素が存在する場合のみ値をセットしてイベントを発火
+    function setElementValue(id, value) {
+        const el = document.getElementById(id);
+        if (el && value !== undefined && value !== null) {
+            el.value = value;
+            el.dispatchEvent(new Event('input'));
+            el.dispatchEvent(new Event('change'));
+        }
+    }
 
     /**
      * マスタの抽出条件を解析してデータをフィルタリングする (Proposal 5)
@@ -4617,6 +4775,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const input = document.getElementById(inputId);
         if (input) {
             input.value = itemName;
+
+            // 履歴から詳細データを自動セット (Proposal 36)
+            autoPopulateFromHistory(targetTab, itemName);
+
             input.dispatchEvent(new Event('change'));
             input.dispatchEvent(new Event('input')); // datalist用
         }

@@ -875,17 +875,17 @@
     <!-- クイック検索モーダル (Proposal 37) -->
     <div id="quick-search-modal" class="modal-overlay" style="z-index: 1200;">
         <div class="modal-container glass-card" style="height: 85vh; max-height: 85vh; width: 95%; max-width: 500px;">
-            <header class="modal-header">
+            <header class="modal-header" style="padding: 10px 16px;">
                 <div class="header-left">
-                    <ion-icon name="search-outline" style="color: var(--accent-green); font-size: 20px;"></ion-icon>
-                    <h2 id="quick-search-title">項目を選択</h2>
+                    <ion-icon name="search-outline" style="color: var(--accent-green); font-size: 18px;"></ion-icon>
+                    <h2 id="quick-search-title" style="font-size: 14px;">項目を選択</h2>
                 </div>
                 <button id="quick-search-close-btn" class="icon-btn">
                     <ion-icon name="close-outline"></ion-icon>
                 </button>
             </header>
-            <div class="modal-content" style="padding: 12px; display: flex; flex-direction: column;">
-                <div class="search-bar mini" style="margin-bottom: 12px;">
+            <div class="modal-content" style="padding: 6px; display: flex; flex-direction: column;">
+                <div class="search-bar mini" style="margin-bottom: 4px;">
                     <ion-icon name="filter-outline"></ion-icon>
                     <input type="text" id="quick-search-input" placeholder="キーワードで絞り込み...">
                 </div>

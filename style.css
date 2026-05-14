@@ -3267,10 +3267,23 @@ input:checked + .slider:before {
 
 .search-bar.mini {
     margin-bottom: 0;
-    padding: 0 12px;
-    height: 40px;
-    flex: 1;
-    min-width: 0; /* flexアイテムの縮小を許可 */
+    padding: 0 8px;
+    height: 28px !important; /* 強制的に高さを固定 */
+    flex: none !important;    /* 縦に伸びないように固定 */
+    min-width: 0;
+    border-radius: 6px;
+    box-shadow: none;
+    background: rgba(0,0,0,0.04);
+}
+
+.search-bar.mini ion-icon {
+    font-size: 14px; /* アイコンも小さく */
+}
+
+.search-bar.mini input {
+    padding: 0 6px; /* パディングをほぼゼロに */
+    font-size: 13px;
+    height: 100%;
 }
 
 .mini-btn {
@@ -3394,14 +3407,16 @@ th.sticky-col {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    flex: 1; /* リスト部分が余白を埋めるように変更 */
+    overflow-y: auto; /* リスト内でのスクロールを有効化 */
 }
 
 .quick-search-item {
-    padding: 14px 16px;
+    padding: 10px 16px; /* 14pxから短縮 */
     background: #fff;
-    border-radius: 12px;
+    border-radius: 10px;
     border: 1px solid rgba(0,0,0,0.05);
-    font-size: 14px;
+    font-size: 13px; /* 14pxから微減 */
     font-weight: 600;
     color: var(--text-main);
     cursor: pointer;

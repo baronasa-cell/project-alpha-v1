@@ -2951,8 +2951,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const trackingUrl = getTrackingUrl(item['発送方法'], item['追跡番号']);
             innerHTML += `
                 <div class="history-product-info" style="display: flex; align-items: center;">${thumbHtml}${itemName} 数量:${item['数量']} 価格:¥${formattedTotal}(単価:¥${formattedUnit}) 送料:¥${(item['送料'] || 0).toLocaleString()}</div>
-                <div class="history-sub-info" style="margin-top: 4px; margin-bottom: 8px; font-size: 0.9em; color: var(--text-muted);">
-                    注文日:${formatDate(item['販売開始日'])} &nbsp;&nbsp; ${item['発送方法'] || ''}
+                <div class="history-inputs-grid" style="margin-bottom: 8px;">
+                    ${createInputHtml('販売開始日', '販売開始日', item['販売開始日'], 'sales-date', 'date', false)}
+                    <div class="input-group mini"><label>発送方法</label><div class="static-value">${item['発送方法'] || '-'}</div></div>
                 </div>
                 <div class="process-steps-container">
                     <label class="group-label">取引工程日付</label>

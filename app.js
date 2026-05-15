@@ -2180,7 +2180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 card.innerHTML = `
                     <div class="card-header">
-                        <div class="product-thumb-container" onclick="showImageModal('${imageUrl}')">
+                        <div class="product-thumb-container" onclick="showImageModal('${(imageUrl || '').replace(/'/g, "\\'")}')">
                             ${imageUrl ? `<img src="${imageUrl}" loading="lazy">` : `<ion-icon name="image-outline"></ion-icon>`}
                         </div>
                         <div class="card-main-info">
@@ -2275,14 +2275,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 card.innerHTML = `
                     <div class="card-header">
-                        <div class="product-thumb-container" onclick="showImageModal('${imageUrl}')">
+                        <div class="product-thumb-container" onclick="showImageModal('${(imageUrl || '').replace(/'/g, "\\'")}')">
                             ${imageUrl ? `<img src="${imageUrl}" loading="lazy">` : `<ion-icon name="image-outline"></ion-icon>`}
                         </div>
                         <div class="card-main-info">
-                            <div class="card-product-name clickable" onclick="navigateToTransactionForm('${itemName}', '${category}')">${itemName}</div>
+                            <div class="card-product-name clickable" onclick="navigateToTransactionForm('${(itemName || '').replace(/'/g, "\\'")}', '${(category || '').replace(/'/g, "\\'")}')">${itemName}</div>
+                            <div class="card-category-badge">${category}</div>
                             <div class="card-sub-info">
                                 ${itemID ? `<span class="id-badge">${itemID}</span>` : ''}
-                                ${barcode ? `<span class="barcode-badge">${barcode}</span>` : ''}
+                                ${barcode ? `<span class="barcode-badge"><ion-icon name="barcode-outline"></ion-icon>${barcode}</span>` : ''}
                                 ${location ? location.split(/[／/，,、\s]+/).filter(s => s).map(loc => `<span class="location-badge"><ion-icon name="location-outline"></ion-icon>${loc}</span>`).join('') : ''}
                             </div>
                         </div>
@@ -2302,7 +2303,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div class="stepper-placeholder"></div>
                         </div>
                         <div class="card-actions action-col" style="margin-top: 4px;">
-                            <button class="camera-btn" onclick="triggerPhotoUpload('${itemName}')" title="写真を登録/変更" style="margin-left:0;">
+                            <button class="camera-btn" onclick="triggerPhotoUpload('${(itemName || '').replace(/'/g, "\\'")}')" title="写真を登録/変更" style="margin-left:0;">
                                 <ion-icon name="camera-outline"></ion-icon>
                             </button>
                             <button class="update-mini-btn no-text btn-save-threshold ${isThresholdDirty ? 'is-dirty' : ''}" title="数値を確定待ちに追加">

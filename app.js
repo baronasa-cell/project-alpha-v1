@@ -1005,6 +1005,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
         }
+        
+        const menuRebuildStockBtn = document.getElementById('menu-rebuild-stock-btn');
+        if (menuRebuildStockBtn) {
+            menuRebuildStockBtn.addEventListener('click', async () => {
+                sideMenu.classList.remove('open');
+                menuOverlay.classList.remove('visible');
+                
+                if (!confirm('在庫の全再集計を実行しますか？\n(スプレッドシートの手修正内容が在庫合計に反映されます)')) return;
+                
+                setLoading(true, '在庫データを再計算中...');
+                try {
+                    const res = await fetchAPI('rebuildInventorySummary');
+                    if (res.status === 'success') {
+                        showToast(res.message, 'success');
+                        // 再集計後に最新データを取得
+                        await initSystem();
+                    } else {
+                        throw new Error(res.message);
+                    }
+                } catch (e) {
+                    console.error("Rebuild error:", e);
+                    showToast('再集計に失敗しました: ' + e.message, 'error');
+                } finally {
+                    setLoading(false);
+                }
+            });
+        }
 
         // Sync Button
         const syncBtn = document.getElementById('sync-btn');

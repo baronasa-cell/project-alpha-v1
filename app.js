@@ -1315,18 +1315,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         const thresholdZeroChip = document.querySelector('.filter-chip[data-filter="threshold-zero"]');
         const uncheckedOnlyChip = document.querySelector('.filter-chip[data-filter="unchecked"]');
         const inStockOnlyChip = document.querySelector('.filter-chip[data-filter="in-stock"]');
+        const noStockOnlyChip = document.querySelector('.filter-chip[data-filter="no-stock"]');
+        const stockAlertChip = document.querySelector('.filter-chip[data-filter="stock-alert"]');
 
         const term = (stockSearchInput ? stockSearchInput.value : "").toLowerCase().trim();
         const showHidden = showHiddenChip ? showHiddenChip.classList.contains('active') : false;
         const thresholdZeroOnly = thresholdZeroChip ? thresholdZeroChip.classList.contains('active') : false;
         const uncheckedOnly = uncheckedOnlyChip ? uncheckedOnlyChip.classList.contains('active') : false;
         const inStockOnly = inStockOnlyChip ? inStockOnlyChip.classList.contains('active') : false;
+        const noStockOnly = noStockOnlyChip ? noStockOnlyChip.classList.contains('active') : false;
+        const stockAlertOnly = stockAlertChip ? stockAlertChip.classList.contains('active') : false;
         
+        // カテゴリチップの選択状態を取得
+        const activeCategoryChips = document.querySelectorAll('.dynamic-chips-wrapper .filter-chip.active');
+        const activeCategories = Array.from(activeCategoryChips).map(c => c.getAttribute('data-category'));
+
         const allStockProducts = currentMasters['T_在庫集計'] || [];
+
+        // カテゴリチップの動的生成 (フィルタ適用前に現在のマスタから抽出)
+        generateCategoryChips(allStockProducts);
 
         const filtered = allStockProducts.filter(p => {
             const name = String(p['品名'] || "").toLowerCase();
-            const category = String(p['カテゴリ'] || "").toLowerCase();
+            const category = String(p['カテゴリ'] || p['商品区分'] || "").toLowerCase();
             
             // マスタからJANコードとIDを補完して検索対象にする
             const itemInMaster = (currentMasters['M_商品'] || []).find(m => m['品名'] === p['品名']);
@@ -1344,8 +1355,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const matchesThreshold = !thresholdZeroOnly || threshold === 0;
             const matchesUnchecked = !uncheckedOnly || isUnchecked;
             const matchesInStock = !inStockOnly || stock > 0;
+            const matchesNoStock = !noStockOnly || stock === 0;
+            const matchesStockAlert = !stockAlertOnly || (stock <= threshold && threshold > 0);
+            
+            // カテゴリフィルタ (複数選択時はOR条件)
+            const matchesCategory = activeCategories.length === 0 || activeCategories.some(ac => category.includes(ac.toLowerCase()));
 
-            return matchesSearch && matchesVisibility && matchesThreshold && matchesUnchecked && matchesInStock;
+            return matchesSearch && matchesVisibility && matchesThreshold && matchesUnchecked && matchesInStock && matchesNoStock && matchesStockAlert && matchesCategory;
         });
 
         // 優先度と表示順によるソート (提案10)
@@ -1369,6 +1385,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         renderStockList(filtered);
+    }
+
+    /**
+     * 在庫データからカテゴリを抽出し、フィルタチップを生成する
+     */
+    function generateCategoryChips(allStock) {
+        const container = document.getElementById('dynamic-category-chips');
+        if (!container) return;
+
+        // すでに選択されているカテゴリを記憶
+        const activeCats = Array.from(container.querySelectorAll('.filter-chip.active')).map(c => c.getAttribute('data-category'));
+
+        // ユニークなカテゴリを抽出 (空文字は除外)
+        const categories = [...new Set(allStock.map(p => p['カテゴリ'] || p['商品区分'] || '').filter(c => c))].sort();
+        
+        // チップのHTML生成
+        container.innerHTML = categories.map(cat => `
+            <button class="filter-chip ${activeCats.includes(cat) ? 'active' : ''}" data-category="${cat}">
+                ${cat}
+            </button>
+        `).join('');
+
+        // イベントリスナーの再設定
+        container.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                chip.classList.toggle('active');
+                applyStockFilters();
+            });
+        });
     }
 
     /**
@@ -1423,11 +1468,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         const input = document.getElementById(inputId);
         if (!input) return;
 
-        const listId = input.getAttribute('list');
-        const datalist = document.getElementById(listId);
-        if (!datalist) return;
+        let options = [];
+        if (input.tagName === 'SELECT') {
+            options = Array.from(input.options)
+                .map(o => o.value)
+                .filter(val => val !== "");
+        } else {
+            const listId = input.getAttribute('list');
+            const datalist = document.getElementById(listId);
+            if (datalist) {
+                options = Array.from(datalist.options).map(o => o.value);
+            }
+        }
 
-        const options = Array.from(datalist.options).map(o => o.value);
+        if (options.length === 0) return;
+
         const title = input.previousElementSibling ? input.previousElementSibling.textContent : "項目を選択";
 
         document.getElementById('quick-search-title').textContent = title;
@@ -1471,8 +1526,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const input = document.getElementById(window.currentQuickSearchInputId);
         if (input) {
             input.value = value;
-            input.dispatchEvent(new Event('input'));
-            input.dispatchEvent(new Event('change'));
+            // イベントを発火させて変更を通知
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
         }
         closeQuickSearch();
     };
@@ -1508,30 +1564,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         let saleItemField = document.getElementById('sale-item');
         if (!saleItemField) return;
 
-        // すでにラッパーの中にある場合は、ラッパーの親を取得
-        const container = saleItemField.dataset.hasClear === "true" ?
-            saleItemField.closest('.input-clear-wrapper').parentElement :
-            saleItemField.parentElement;
+        const container = saleItemField.closest('.input-with-icon');
+        if (!container) return;
+        
         const currentVal = saleItemField.value;
+        const modeText = document.getElementById('sale-item-mode-text');
 
         if (isPersonal && saleItemField.tagName === 'SELECT') {
             const input = document.createElement('input');
             input.type = 'text';
             input.id = 'sale-item';
             input.placeholder = '品名を自由入力';
-            input.setAttribute('list', 'product-list');
             input.value = currentVal;
-
-            // 古い要素を置換（ラッパーごと置換する必要がある場合を考慮）
-            const targetToReplace = saleItemField.dataset.hasClear === "true" ?
-                saleItemField.closest('.input-clear-wrapper') :
-                saleItemField;
-            container.replaceChild(input, targetToReplace);
-
-            // 新規入力欄にクリアボタンを追加
-            addClearButton(input);
+            
+            container.replaceChild(input, saleItemField);
+            if (modeText) modeText.textContent = '(個人用: 自由入力可)';
         } else if (!isPersonal && saleItemField.tagName === 'INPUT') {
-            // 事業用の場合は、M_画面制御の定義に従って select か suggest-strict かを判定
             const masters = currentMasters['M_画面制御'] || [];
             const ctrl = masters.find(m => m['要素ID'] === 'sale-item');
             const type = ctrl ? ctrl['タイプ'] : 'select';
@@ -1549,20 +1597,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     select.appendChild(o);
                 });
                 select.value = currentVal;
-
-                const targetToReplace = saleItemField.dataset.hasClear === "true" ?
-                    saleItemField.closest('.input-clear-wrapper') :
-                    saleItemField;
-                container.replaceChild(select, targetToReplace);
+                
+                container.replaceChild(select, saleItemField);
+                if (modeText) modeText.textContent = '(事業用: リストから選択のみ)';
             } else {
-                // suggest-strict の場合は INPUT のままでよいが、プレースホルダーなどを更新
-                saleItemField.placeholder = '販売品名を検索...';
-                const modeText = document.getElementById('sale-item-mode-text');
+                saleItemField.placeholder = '品名を入力または検索';
                 if (modeText) modeText.textContent = '(事業用: リストから選択のみ)';
             }
         }
 
-        // 差し替え後の要素にプレビューリスナーを再設定
         setupImagePreviewListeners();
     }
 
@@ -2142,6 +2185,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </div>
                         <div class="card-main-info">
                             <div class="card-product-name">${itemName}</div>
+                            <div class="card-category-badge">${category}</div>
                             <div class="card-sub-info">
                                 ${itemID ? `<span class="id-badge">${itemID}</span>` : ''}
                                 ${barcode ? `<span class="barcode-badge"><ion-icon name="barcode-outline"></ion-icon>${barcode}</span>` : ''}
@@ -5139,5 +5183,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.bulk-clear-btn').forEach(btn => {
         btn.onclick = window.clearBasket;
     });
+
+    /**
+     * ---- スクロール位置に応じたトップへ戻るボタンの制御 (提案42) ----
+     */
+    const contentArea = document.getElementById('content-area');
+    const scrollBtn = document.getElementById('scroll-to-top-btn');
+
+    if (contentArea && scrollBtn) {
+        contentArea.addEventListener('scroll', () => {
+            if (contentArea.scrollTop > 300) {
+                scrollBtn.classList.add('visible');
+            } else {
+                scrollBtn.classList.remove('visible');
+            }
+        });
+
+        scrollBtn.addEventListener('click', () => {
+            contentArea.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+    }
 
 });

@@ -208,6 +208,12 @@
                         <button class="filter-chip" data-filter="in-stock">
                             <ion-icon name="checkmark-circle-outline"></ion-icon>在庫あり
                         </button>
+                        <button class="filter-chip" data-filter="no-stock">
+                            <ion-icon name="close-circle-outline"></ion-icon>在庫なし
+                        </button>
+                        <button class="filter-chip" data-filter="stock-alert">
+                            <ion-icon name="alert-circle-outline"></ion-icon>不足
+                        </button>
                         <button class="filter-chip" data-filter="threshold-zero">
                             <ion-icon name="warning-outline"></ion-icon>閾値0
                         </button>
@@ -217,6 +223,9 @@
                         <button class="filter-chip" data-filter="hidden">
                             <ion-icon name="eye-off-outline"></ion-icon>非表示品
                         </button>
+                        <div id="dynamic-category-chips" class="dynamic-chips-wrapper">
+                            <!-- JSで動的にカテゴリチップが生成されます -->
+                        </div>
                     </div>
                 </div>
 
@@ -381,9 +390,14 @@
                     </div>
                     <div class="input-group">
                         <label>品名 <span id="make-item-preview" class="input-image-preview"></span></label>
-                        <select id="make-item">
-                            <option value="">--- データ取得中 ---</option>
-                        </select>
+                        <div class="input-with-icon">
+                            <select id="make-item">
+                                <option value="">--- データ取得中 ---</option>
+                            </select>
+                            <button class="icon-input-btn mini-search-btn" onclick="openQuickSearch('make-item')">
+                                <ion-icon name="search-outline"></ion-icon>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- BOM在庫チェック結果表示用 (提案対応: 位置を上に移動) -->
@@ -499,9 +513,14 @@
 
                     <div class="input-group">
                         <label id="product-name-label">品名 <span id="sale-item-preview" class="input-image-preview"></span> <span id="sale-item-mode-text">(事業用: リストから選択のみ)</span></label>
-                        <select id="sale-item">
-                            <option value="">--- データ取得中 ---</option>
-                        </select>
+                        <div class="input-with-icon">
+                            <select id="sale-item">
+                                <option value="">--- データ取得中 ---</option>
+                            </select>
+                            <button class="icon-input-btn mini-search-btn" onclick="openQuickSearch('sale-item')">
+                                <ion-icon name="search-outline"></ion-icon>
+                            </button>
+                        </div>
                         <p class="input-hint personal-only" style="display: none;">※個人用は自由入力が可能です(実装時切替)</p>
                     </div>
 
@@ -964,6 +983,9 @@
         </div>
     </div>
 
+    <button id="scroll-to-top-btn" class="scroll-to-top-btn" title="先頭へ戻る">
+        <ion-icon name="arrow-up-outline"></ion-icon>
+    </button>
     <script src="app.js"></script>
 </body>
 </html>

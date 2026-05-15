@@ -1835,7 +1835,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     /**
      * 共通バリデーションロジック
      */
-    function validateData(sheet, data) {
+    function validateData(sheet, data, isUpdate = false) {
         const configs = [
             { btnId: 'buy-submit', sheet: 'T_仕入', fields: { date: 'purchase-date', status: 'buy-status-entry', vendor: 'buy-vendor', item: 'buy-item', price: 'buy-price', quantity: 'buy-quantity', payment: 'buy-payment', category: 'buy-category', note: 'buy-note' } },
             { btnId: 'exp-submit', sheet: 'T_経費', fields: { date: 'expense-date', status: 'exp-status-entry', account: 'exp-account', vendor: 'exp-vendor', item: 'exp-item', price: 'exp-price', quantity: 'exp-quantity', payment: 'exp-payment', note: 'exp-note' } },
@@ -1935,7 +1935,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // 特別なビジネスルール: 販売時の在庫チェック（簡易版 - フロントにある最新データで確認）
-        if (sheet === 'T_販売') {
+        // 履歴更新時は既に引当済みのためスキップ
+        if (sheet === 'T_販売' && !isUpdate) {
             const isPersonal = data.type === 'personal';
             const productName = data.item;
             const qty = data.quantity;
@@ -3229,7 +3230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 finalData.type = btn.getAttribute('data-is-personal') === 'true' ? 'personal' : 'business';
             }
 
-            const error = validateData(sheetName, finalData);
+            const error = validateData(sheetName, finalData, true);
             if (error) {
                 alert(error);
                 btn.innerHTML = originalHTML;

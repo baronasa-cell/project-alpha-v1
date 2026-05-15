@@ -1259,8 +1259,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                             masterData = parseAndApplyFilter(masterData, ctrl['抽出条件'], masters);
                         }
                         if (masterData && masterData.length > 0) {
-                            const excludeFields = ['表示順', '使用FLG', 'カテゴリ', '手数料率', '送料', '用途区分', '説明', 'デフォルト仕訳', '役割（タイプ）', '対象機能', '画面名称', '商品ID'];
-                            const priorityFields = ['品名', '完成品名', '名称', 'ステータス名称'];
+                            const excludeFields = ['表示順', '使用FLG', 'カテゴリ', '手数料率', '送料', '用途区分', '説明', 'デフォルト仕訳', '役割（タイプ）', '対象機能', '画面名称', '商品ID', '仕入先ID', '売先ID', '発送ID', '仕訳ID', '画像URL'];
+                            const priorityFields = ['品名', '完成品名', '名称', 'ステータス名称', '仕入先', '売先', '発送方法', '仕訳名'];
                             
                             let keyField = priorityFields.find(k => masterData[0].hasOwnProperty(k));
                             if (!keyField) {
@@ -1954,18 +1954,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            // suggest-strict のバリデーション
+            // suggest-strict のバリデーション (新規登録時のみ実行)
             const el = document.getElementById(confFields[rule.key]);
-            if (el && el.dataset.type === 'suggest-strict') {
+            if (el && el.dataset.type === 'suggest-strict' && !isUpdate) {
                 // 販売タブで「個人用」が選択されている場合は、マスタチェックをスキップする
                 const isPersonalSales = (sheet === 'T_販売' && data.type === 'personal');
                 if (!isPersonalSales) {
                     const masterName = el.dataset.master;
                     const masterData = currentMasters[masterName] || [];
                     
-                    // 除外フィールドを考慮して品名などのキーフィールドを特定（buildDynamicUIと同様のロジック）
-                    const excludeFields = ['表示順', '使用FLG', 'カテゴリ', '手数料率', '送料', '用途区分', '説明', 'デフォルト仕訳', '役割（タイプ）', '対象機能', '画面名称'];
-                    const keyField = masterData.length > 0 ? Object.keys(masterData[0]).find(k => !excludeFields.includes(k)) : null;
+                    // 除外フィールドを考慮して品名などのキーフィールドを特定
+                    const excludeFields = ['表示順', '使用FLG', 'カテゴリ', '手数料率', '送料', '用途区分', '説明', 'デフォルト仕訳', '役割（タイプ）', '対象機能', '画面名称', '商品ID', '仕入先ID', '売先ID', '発送ID', '仕訳ID', '画像URL'];
+                    const priorityFields = ['品名', '完成品名', '名称', 'ステータス名称', '仕入先', '売先', '発送方法', '仕訳名'];
+                    
+                    let keyField = priorityFields.find(k => masterData.length > 0 && masterData[0].hasOwnProperty(k));
+                    if (!keyField && masterData.length > 0) {
+                        keyField = Object.keys(masterData[0]).find(k => !excludeFields.includes(k));
+                    }
                     
                     if (keyField) {
                         const exists = masterData.some(r => String(r[keyField]) === String(val));

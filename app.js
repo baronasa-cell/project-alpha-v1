@@ -3424,7 +3424,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             // 個人用売上の集計
-            const psData = lastHistoryData.personalSalesByMonth || {};
+            const psData = (lastHistoryData && lastHistoryData.personalSalesByMonth) || {};
             for (const ym in psData) {
                 const [y, m] = ym.split('-');
                 if (String(y) === String(targetY)) {
@@ -3680,6 +3680,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 明細リスト (Details用)
         const ledgerBody = document.getElementById('ledger-list-body');
         if (ledgerBody) {
+            let tableSalesTotal = 0;
+            let tableCostTotal = 0;
+            let tableProfitTotal = 0;
+
             ledgerBody.innerHTML = filteredLedger.length > 0 ? filteredLedger.map(row => {
                 const s = parseNumber(row['売上']);
                 const p = parseNumber(row['仕入']);
@@ -3689,7 +3693,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const d = parseNumber(row['諸会費']);
                 const f = parseNumber(row['支払手数料']);
                 const ms = parseNumber(row['雑費']);
-                const rowProfit = s - (p + c + r + sp + d + f + ms);
+                
+                const rowCost = p + c + r + sp + d + f + ms;
+                const rowProfit = s - rowCost;
+
+                tableSalesTotal += s;
+                tableCostTotal += rowCost;
+                tableProfitTotal += rowProfit;
 
                 const itemName = row['品名'] || "-";
 
@@ -3715,10 +3725,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const rounded = Math.round(val || 0);
                 if (el) el.textContent = rounded > 0 ? '¥' + rounded.toLocaleString() : (rounded < 0 ? '-¥' + Math.abs(rounded).toLocaleString() : '0');
             };
-            const totals = current;
-            updateEl('ledger-total-sales', totals.sales);
-            updateEl('ledger-total-purchase', totals.cost);
-            updateEl('ledger-total-profit', totals.profit);
+            
+            // 明細表のフッターは、表内の合計値と一致させる
+            updateEl('ledger-total-sales', tableSalesTotal);
+            updateEl('ledger-total-purchase', tableCostTotal);
+            updateEl('ledger-total-profit', tableProfitTotal);
         }
 
         if (!window.ledgerInitialized) {

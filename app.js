@@ -156,6 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupNavigation();
         setupToggleLogics();
         setupSettingsListeners();
+        setupAnalysisAndSearchListeners();
         setupScannerListeners(); // スキャナーはデータロードを待たずに即座に有効化
         setupInventoryCheckListeners();
 
@@ -191,16 +192,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             appContainer.style.display = 'flex';
         }
 
-        // 1. まずキャッシュからマスタを読み込んでUIを構築
+        // 1. まずキャッシュからマスタと履歴を読み込んで即座にUIを構築
         loadMastersFromCache();
+        loadHistoryFromCache();
 
-        console.time('Essential Load');
-        await initSystem('essential');
-        console.timeEnd('Essential Load');
-
-
-        // 4. 残りの詳細履歴データをバックグラウンドで非同期に取得 (マスタは取得済みなのでスキップ)
-        initSystem('all', { skipMasters: true }).then(() => {
+        // 2. 最新データをバックグラウンドで非同期に取得してサイレント更新
+        initSystem('all').then(() => {
             console.log("Background data load completed.");
         }).catch(err => {
             console.warn("Background load failed:", err);
@@ -272,6 +269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (response.data.historyData && response.data.historyData.isRaw) {
                     // 生データをキャッシュに保持（マージ用）
                     lastRawData = Object.assign({}, lastRawData, response.data.historyData.rawData);
+                    saveHistoryToCache(lastRawData);
 
                     const processed = processClientData(lastRawData, scope);
                     lastHistoryData = processed;
@@ -532,6 +530,38 @@ document.addEventListener('DOMContentLoaded', async () => {
             localStorage.setItem('inventory_masters_cache', JSON.stringify(masters));
         } catch (e) {
             console.warn("Failed to save cache:", e);
+        }
+    }
+
+    /**
+     * 履歴データのキャッシュ処理 (Proposal 43)
+     */
+    function loadHistoryFromCache() {
+        try {
+            const cached = localStorage.getItem('inventory_history_cache');
+            if (cached) {
+                lastRawData = JSON.parse(cached);
+                console.log("History loaded from cache.");
+                lastHistoryData = processClientData(lastRawData, 'all');
+                renderAllHistory(lastHistoryData);
+                
+                const activeTab = document.querySelector('.nav-item.active');
+                if (activeTab && activeTab.getAttribute('data-target') === 'ledger') {
+                    if (typeof renderLedger === 'function') renderLedger();
+                }
+                return true;
+            }
+        } catch (e) {
+            console.warn("Failed to load history cache:", e);
+        }
+        return false;
+    }
+
+    function saveHistoryToCache(rawData) {
+        try {
+            localStorage.setItem('inventory_history_cache', JSON.stringify(rawData));
+        } catch (e) {
+            console.warn("Failed to save history cache:", e);
         }
     }
 
@@ -5259,6 +5289,337 @@ document.addEventListener('DOMContentLoaded', async () => {
                 behavior: 'smooth'
             });
         });
+    }
+
+    function setupAnalysisAndSearchListeners() {
+        const salesBtn = document.getElementById('menu-sales-analysis-btn');
+        const historyBtn = document.getElementById('menu-history-search-btn');
+        const salesModal = document.getElementById('sales-analysis-modal');
+        const historyModal = document.getElementById('history-search-modal');
+
+        if (salesBtn) {
+            salesBtn.addEventListener('click', () => {
+                const sideMenu = document.getElementById('side-menu');
+                const menuOverlay = document.getElementById('menu-overlay');
+                if (sideMenu) sideMenu.classList.remove('open');
+                if (menuOverlay) menuOverlay.classList.remove('visible');
+                salesModal.style.display = 'flex';
+                renderSalesAnalysis();
+            });
+        }
+        if (historyBtn) {
+            historyBtn.addEventListener('click', () => {
+                const sideMenu = document.getElementById('side-menu');
+                const menuOverlay = document.getElementById('menu-overlay');
+                if (sideMenu) sideMenu.classList.remove('open');
+                if (menuOverlay) menuOverlay.classList.remove('visible');
+                historyModal.style.display = 'flex';
+            });
+        }
+
+        const salesCloseBtn = document.getElementById('sales-analysis-close-btn');
+        if (salesCloseBtn) salesCloseBtn.addEventListener('click', () => salesModal.style.display = 'none');
+
+        const historyCloseBtn = document.getElementById('history-search-close-btn');
+        if (historyCloseBtn) historyCloseBtn.addEventListener('click', () => historyModal.style.display = 'none');
+
+        const salesPeriodSelect = document.getElementById('sales-analysis-period-select');
+        if (salesPeriodSelect) {
+            salesPeriodSelect.addEventListener('change', () => {
+                renderSalesAnalysis();
+            });
+        }
+
+        const executeSearchBtn = document.getElementById('history-search-execute-btn');
+        if (executeSearchBtn) {
+            executeSearchBtn.addEventListener('click', executeHistorySearch);
+        }
+        
+        window.addEventListener('click', (event) => {
+            if (event.target === salesModal) salesModal.style.display = 'none';
+            if (event.target === historyModal) historyModal.style.display = 'none';
+        });
+    }
+
+    function renderSalesAnalysis() {
+        if (!lastHistoryData || !lastHistoryData.ledger) {
+            if (typeof showToast === 'function') showToast('データを読み込んでいます...', 'info');
+            return;
+        }
+
+        const period = document.getElementById('sales-analysis-period-select').value;
+        const ledger = lastHistoryData.ledger;
+
+        let targetData = [];
+        const now = new Date();
+        const currentY = now.getFullYear();
+        const currentM = now.getMonth() + 1;
+
+        ledger.forEach(row => {
+            const d = new Date(row['日付']);
+            if (isNaN(d.getTime())) return;
+            const y = d.getFullYear();
+            const m = d.getMonth() + 1;
+
+            if (period === 'current_month') {
+                if (y === currentY && m === currentM) targetData.push(row);
+            } else if (period === 'last_month') {
+                const prevM = currentM === 1 ? 12 : currentM - 1;
+                const prevY = currentM === 1 ? currentY - 1 : currentY;
+                if (y === prevY && m === prevM) targetData.push(row);
+            } else if (period === 'current_year') {
+                if (y === currentY) targetData.push(row);
+            } else {
+                targetData.push(row);
+            }
+        });
+
+        // 1. 商品別ランキング
+        const productMap = {};
+        targetData.forEach(row => {
+            let itemName = row['品名'] || '不明';
+            const parts = itemName.split(' ');
+            if (parts.length > 1) {
+                itemName = parts.slice(1).join(' ');
+            }
+            if (!productMap[itemName]) productMap[itemName] = { sales: 0, count: 0 };
+            const s = parseNumber(row['売上']);
+            if (s > 0) {
+                productMap[itemName].sales += s;
+                productMap[itemName].count++;
+            }
+        });
+
+        const productRank = Object.entries(productMap)
+            .sort((a, b) => b[1].sales - a[1].sales)
+            .slice(0, 10);
+
+        const prodContainer = document.getElementById('analysis-product-ranking');
+        if (prodContainer) {
+            prodContainer.innerHTML = productRank.length > 0 ? productRank.map((item, idx) => `
+                <div class="analysis-item">
+                    <div class="analysis-item-rank">${idx + 1}</div>
+                    <div class="analysis-item-name" title="${item[0]}">${item[0]}</div>
+                    <div class="analysis-item-value">
+                        <div class="analysis-item-amount">¥${Math.round(item[1].sales).toLocaleString()}</div>
+                        <div class="analysis-item-sub">${item[1].count}件</div>
+                    </div>
+                </div>
+            `).join('') : '<p class="empty-msg" style="text-align:center; padding: 10px;">データがありません</p>';
+        }
+
+        // 2. 売先別ランキング
+        const buyerMap = {};
+        targetData.forEach(row => {
+            let buyerName = 'その他';
+            const fullName = row['品名'] || '';
+            const parts = fullName.split(' ');
+            if (parts.length > 1) {
+                buyerName = parts[0];
+            }
+            if (!buyerMap[buyerName]) buyerMap[buyerName] = { sales: 0, count: 0 };
+            const s = parseNumber(row['売上']);
+            if (s > 0) {
+                buyerMap[buyerName].sales += s;
+                buyerMap[buyerName].count++;
+            }
+        });
+
+        const buyerRank = Object.entries(buyerMap)
+            .sort((a, b) => b[1].sales - a[1].sales)
+            .slice(0, 5);
+
+        const buyerContainer = document.getElementById('analysis-buyer-ranking');
+        if (buyerContainer) {
+            buyerContainer.innerHTML = buyerRank.length > 0 ? buyerRank.map((item, idx) => `
+                <div class="analysis-item">
+                    <div class="analysis-item-rank">${idx + 1}</div>
+                    <div class="analysis-item-name" title="${item[0]}">${item[0]}</div>
+                    <div class="analysis-item-value">
+                        <div class="analysis-item-amount">¥${Math.round(item[1].sales).toLocaleString()}</div>
+                        <div class="analysis-item-sub">${item[1].count}件</div>
+                    </div>
+                </div>
+            `).join('') : '<p class="empty-msg" style="text-align:center; padding: 10px;">データがありません</p>';
+        }
+
+        // 3. 利益率推移 と 4. 年間俯瞰 (月ごとの集計)
+        const monthlySum = {};
+        targetData.forEach(row => {
+            const d = new Date(row['日付']);
+            if (isNaN(d.getTime())) return;
+            const y = d.getFullYear();
+            const m = d.getMonth() + 1;
+            const ym = `${y}年${m}月`;
+
+            if (!monthlySum[ym]) monthlySum[ym] = { sales: 0, cost: 0, dateObj: new Date(y, m - 1, 1) };
+
+            const s = parseNumber(row['売上']);
+            const c = parseNumber(row['仕入']) + parseNumber(row['通信費']) + parseNumber(row['修繕費']) +
+                      parseNumber(row['消耗品費']) + parseNumber(row['諸会費']) + parseNumber(row['支払手数料']) + parseNumber(row['雑費']);
+
+            monthlySum[ym].sales += s;
+            monthlySum[ym].cost += c;
+        });
+
+        const monthlyArr = Object.entries(monthlySum)
+            .sort((a, b) => b[1].dateObj - a[1].dateObj);
+
+        const profitContainer = document.getElementById('analysis-profit-margin');
+        const yearlyContainer = document.getElementById('analysis-yearly-summary');
+
+        if (profitContainer) {
+            profitContainer.innerHTML = monthlyArr.length > 0 ? monthlyArr.map(item => {
+                const s = item[1].sales;
+                const c = item[1].cost;
+                const p = s - c;
+                const margin = s > 0 ? ((p / s) * 100).toFixed(1) : '0.0';
+                return `
+                    <div class="analysis-item">
+                        <div class="analysis-item-name" style="width: 80px; flex: none;">${item[0]}</div>
+                        <div class="analysis-item-value" style="flex: 1; display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-size:12px; color:var(--text-muted);">粗利: ¥${Math.round(p).toLocaleString()}</div>
+                            <div class="analysis-item-amount" style="color: ${margin >= 0 ? 'var(--accent-green)' : '#ef4444'};">${margin}%</div>
+                        </div>
+                    </div>
+                `;
+            }).join('') : '<p class="empty-msg" style="text-align:center; padding: 10px;">データがありません</p>';
+        }
+
+        if (yearlyContainer) {
+            yearlyContainer.innerHTML = monthlyArr.length > 0 ? monthlyArr.map(item => {
+                const s = item[1].sales;
+                const c = item[1].cost;
+                const p = s - c;
+                return `
+                    <tr>
+                        <td style="font-size:11px;">${item[0]}</td>
+                        <td>¥${Math.round(s).toLocaleString()}</td>
+                        <td>¥${Math.round(c).toLocaleString()}</td>
+                        <td style="color: ${p >= 0 ? 'inherit' : '#ef4444'}">¥${Math.round(p).toLocaleString()}</td>
+                    </tr>
+                `;
+            }).join('') : '<tr><td colspan="4" style="text-align:center; padding: 10px;">データがありません</td></tr>';
+        }
+    }
+
+    async function executeHistorySearch() {
+        const keyword = document.getElementById('history-search-keyword').value;
+        const fromDate = document.getElementById('history-search-from').value;
+        const toDate = document.getElementById('history-search-to').value;
+        const target = document.getElementById('history-search-target').value;
+        const resultsContainer = document.getElementById('history-search-results');
+
+        resultsContainer.innerHTML = `
+            <div class="empty-history" style="padding: 40px; text-align: center; color: var(--text-muted);">
+                <ion-icon name="sync-outline" class="spinning" style="font-size: 24px; margin-bottom: 8px;"></ion-icon>
+                <div>検索中...</div>
+            </div>
+        `;
+
+        try {
+            const response = await fetchAPI('searchHistory', { target: target, keyword: keyword, dateFrom: fromDate, dateTo: toDate });
+            if (response.status === 'success') {
+                const rawData = response.data.rawData;
+                let merged = [];
+                for (let tableName in rawData) {
+                    if (rawData[tableName].length > 1) {
+                        const parsed = convertRawToObjects(rawData[tableName]);
+                        let tType = '';
+                        if (tableName === 'T_仕入') tType = 'purchase';
+                        else if (tableName === 'T_経費') tType = 'expense';
+                        else if (tableName === 'T_製造') tType = 'manufacturing';
+                        else if (tableName === 'T_販売') tType = 'sales';
+                        
+                        parsed.forEach(row => {
+                            row.type = tType;
+                            merged.push(row);
+                        });
+                    }
+                }
+
+                if (merged.length === 0) {
+                    resultsContainer.innerHTML = `
+                        <div class="empty-history" style="padding: 40px; text-align: center; color: var(--text-muted);">
+                            <p>該当する履歴が見つかりませんでした。</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                merged.sort((a, b) => {
+                    const dA = new Date(a['取引完了日'] || a['完了日'] || a['入庫日'] || a['製造完了日'] || a['日付'] || 0).getTime();
+                    const dB = new Date(b['取引完了日'] || b['完了日'] || b['入庫日'] || b['製造完了日'] || b['日付'] || 0).getTime();
+                    return dB - dA;
+                });
+
+                merged = merged.slice(0, 50);
+                resultsContainer.innerHTML = '';
+                
+                merged.forEach(action => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'transaction-item';
+                    
+                    const isIncome = action.type === 'sales';
+                    const isExpense = ['purchase', 'expense'].includes(action.type);
+                    const colorClass = action.type === 'sales' ? 'income' : action.type;
+                    const symbol = isIncome ? '+' : (isExpense ? '-' : '');
+                    const iconName = action.type === 'sales' ? 'pricetags-outline' :
+                        (action.type === 'purchase' ? 'cart-outline' :
+                            (action.type === 'expense' ? 'cash-outline' : 'hammer-outline'));
+
+                    const status = action['ステータス'] || '不明';
+                    const isCompleted = ['完了', '入庫済み', '入庫済'].includes(status);
+                    
+                    const itemName = action['品名'] || action['摘要'] || action['完成品名'] || '不明';
+                    const id = action['販売ID'] || action['仕入ID'] || action['経費ID'] || action['製造ID'] || '-';
+                    const qty = action['数量'] || action['製造数量'] || '-';
+                    const amount = parseNumber(action['価格']) || parseNumber(action['合計金額']) || parseNumber(action['売上']) || parseNumber(action['仕入']) || 0;
+                    
+                    let dateStr = '-';
+                    const dateVal = action['取引完了日'] || action['完了日'] || action['入庫日'] || action['製造完了日'] || action['日付'];
+                    if (dateVal) {
+                        const d = new Date(dateVal);
+                        if (!isNaN(d.getTime())) {
+                            dateStr = formatDate(d);
+                        }
+                    }
+                    
+                    const buyer = action['売先'] || '';
+                    
+                    const labelPrefix = action.type === 'purchase' ? '仕入' : (action.type === 'expense' ? '経費' : (action.type === 'manufacturing' ? '製造' : '販売'));
+
+                    itemDiv.innerHTML = `
+                        <div class="type-icon ${colorClass}">
+                            <ion-icon name="${iconName}"></ion-icon>
+                        </div>
+                        <div class="item-info">
+                            <div class="item-header-meta">
+                                <span class="item-type-badge">${labelPrefix}</span>
+                                <span class="item-status-badge ${isCompleted ? 'completed' : ''}">${status}</span>
+                                ${isIncome && buyer ? `<span class="badge badge-buyer">${buyer}</span>` : ''}
+                            </div>
+                            <h4 class="item-name-text">${itemName}</h4>
+                            <div class="item-sub-meta">
+                                <span>${dateStr}</span>
+                                <span>数量: ${qty}</span>
+                                <span>ID: ${id}</span>
+                            </div>
+                        </div>
+                        <div class="item-amount ${isIncome ? 'positive' : (action.type === 'manufacturing' ? 'neutral' : 'negative')}">
+                            ${action.type === 'manufacturing' ? '<span class="no-amount">-</span>' : symbol + '¥' + Math.abs(amount).toLocaleString()}
+                        </div>
+                    `;
+                    resultsContainer.appendChild(itemDiv);
+                });
+                
+            } else {
+                if (typeof showToast === 'function') showToast('検索に失敗しました: ' + response.message, 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            if (typeof showToast === 'function') showToast('検索エラーが発生しました', 'error');
+        }
     }
 
 });

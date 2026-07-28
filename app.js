@@ -3656,17 +3656,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             chartBars.innerHTML = monthsToShow.map(m => {
                 const businessSales = monthlySum[m].sales;
                 const personalSales = personalSalesByMonth[m] || 0;
-                const totalSalesHeight = ((businessSales + personalSales) / maxVal) * 100;
+                const totalSales = businessSales + personalSales;
+                const totalSalesHeight = (totalSales / maxVal) * 100;
+                const businessPct = totalSales > 0 ? (businessSales / totalSales) * 100 : 0;
+                const personalPct = totalSales > 0 ? (personalSales / totalSales) * 100 : 0;
                 const businessHeight = (businessSales / maxVal) * 100;
                 const cHeight = (monthlySum[m].cost / maxVal) * 100;
                 const label = m.split('-')[1] + '月';
-                // 積層バー: 事業用(緑)の上に個人用(青緑)を積み上げ
+                // バグ報告11修正: バー2本構成（1本目: 売上+個人積み上げ、2本目: 費用）
                 if (personalSales > 0) {
                     return `
                     <div class="bar-group">
-                        <div class="bar-stack" style="height: ${totalSalesHeight}%; display:flex; flex-direction:column-reverse;">
-                            <div class="bar-segment income" style="flex: 0 0 ${businessHeight > 0 ? (businessHeight / totalSalesHeight * 100) : 0}%;"></div>
-                            <div class="bar-segment personal" style="flex: 1 1 auto;"></div>
+                        <div class="bar-stack" style="height: ${totalSalesHeight}%;">
+                            <div class="bar-segment income" style="height: ${businessPct}%;"></div>
+                            <div class="bar-segment personal" style="height: ${personalPct}%;"></div>
                         </div>
                         <div class="bar expense" style="height: ${cHeight}%;"></div>
                         <span class="bar-label" style="font-size:0.75em;">${label}</span>
@@ -3748,6 +3751,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const ledgerBody = document.getElementById('ledger-list-body');
         if (ledgerBody) {
             let tableSalesTotal = 0;
+            let tablePurchaseTotal = 0;
+            let tableCommTotal = 0;
+            let tableRepairTotal = 0;
+            let tableSuppliesTotal = 0;
+            let tableDuesTotal = 0;
+            let tableFeeTotal = 0;
+            let tableMiscTotal = 0;
             let tableCostTotal = 0;
             let tableProfitTotal = 0;
 
@@ -3765,6 +3775,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const rowProfit = s - rowCost;
 
                 tableSalesTotal += s;
+                tablePurchaseTotal += p;
+                tableCommTotal += c;
+                tableRepairTotal += r;
+                tableSuppliesTotal += sp;
+                tableDuesTotal += d;
+                tableFeeTotal += f;
+                tableMiscTotal += ms;
                 tableCostTotal += rowCost;
                 tableProfitTotal += rowProfit;
 
@@ -3793,9 +3810,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (el) el.textContent = rounded > 0 ? '¥' + rounded.toLocaleString() : (rounded < 0 ? '-¥' + Math.abs(rounded).toLocaleString() : '0');
             };
 
-            // 明細表のフッターは、表内の合計値と一致させる
+            // 明細表のフッターは、各項目の合計値と正確に一致させる (バグ報告15対応)
             updateEl('ledger-total-sales', tableSalesTotal);
-            updateEl('ledger-total-purchase', tableCostTotal);
+            updateEl('ledger-total-purchase', tablePurchaseTotal);
+            updateEl('ledger-total-comm', tableCommTotal);
+            updateEl('ledger-total-repair', tableRepairTotal);
+            updateEl('ledger-total-supplies', tableSuppliesTotal);
+            updateEl('ledger-total-dues', tableDuesTotal);
+            updateEl('ledger-total-fee', tableFeeTotal);
+            updateEl('ledger-total-misc', tableMiscTotal);
             updateEl('ledger-total-profit', tableProfitTotal);
         }
 
@@ -4194,6 +4217,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return name === itemName.trim() && item['ステータス'] === '購入予定';
             }).reduce((sum, item) => sum + (parseFloat(item['数量']) || 0), 0);
 
+            // 提案51: 販売履歴から発送前のものを集計
+            const activeSales = lastHistoryData.history['T_販売'] || [];
+            const salesTotal = activeSales.filter(s => {
+                const name = (s['品名'] || '').toString().trim();
+                return name === itemName.trim() && !['発送完了', '完了', 'キャンセル'].includes(s['ステータス']);
+            }).reduce((sum, s) => sum + (parseFloat(s['数量']) || 0), 0);
+
             let statusBadge = '';
             let badges = [];
             if (mfgTotal > 0) {
@@ -4204,6 +4234,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             if (plannedTotal > 0) {
                 badges.push(`<span class="alert-processing-badge planned"><ion-icon name="calendar-outline"></ion-icon>購入予定(${plannedTotal})</span>`);
+            }
+            if (salesTotal > 0) {
+                badges.push(`<span class="alert-processing-badge sales"><ion-icon name="send-outline"></ion-icon>発送待(${salesTotal})</span>`);
             }
             statusBadge = badges.join('');
 
@@ -4916,9 +4949,9 @@ document.addEventListener('DOMContentLoaded', async () => {
      * 在庫一覧からカテゴリに応じた取引画面へ遷移し、対象品目を選択する (提案11改)
      */
     window.navigateToTransactionForm = (itemName, category) => {
-        // カテゴリが「商品」の場合は選択モーダルを表示 (提案18/25 B案)
-        if (category === '商品') {
-            showActionSelectionModal(itemName);
+        // カテゴリが「商品」または「単体商品」の場合は選択モーダルを表示 (提案18/25 B案・提案49)
+        if (category === '商品' || category === '単体商品') {
+            showActionSelectionModal(itemName, category);
             return;
         }
 
@@ -4932,7 +4965,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (category === '経費') {
             targetTab = 'expense';
             inputId = 'exp-item';
-        } else if (category === 'パーツ' || category === '単体商品') {
+        } else if (category === 'パーツ') {
             targetTab = 'purchase';
             inputId = 'buy-item';
         }
@@ -4975,7 +5008,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     /**
      * 遷移先選択モーダルを表示する (提案18/25 B案)
      */
-    function showActionSelectionModal(itemName) {
+    function showActionSelectionModal(itemName, category = '商品') {
         let overlay = document.getElementById('action-selection-overlay');
         if (!overlay) {
             overlay = document.createElement('div');
@@ -4986,7 +5019,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="action-selection-title">取引の登録</div>
                     <div class="action-selection-item-name" id="action-selection-item-name"></div>
                     <div class="action-btn-group">
-                        <button class="action-select-btn manufacturing" id="action-btn-manufacturing">
+                        <button class="action-select-btn manufacturing" id="action-btn-primary">
                             <ion-icon name="hammer-outline"></ion-icon>製造登録へ
                         </button>
                         <button class="action-select-btn sales" id="action-btn-sales">
@@ -5002,13 +5035,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         const nameEl = document.getElementById('action-selection-item-name');
         if (nameEl) nameEl.textContent = itemName;
 
+        const primaryBtn = document.getElementById('action-btn-primary');
+        const salesBtn = document.getElementById('action-btn-sales');
+        
+        // 提案49: カテゴリに応じたボタン表示の切り替え
+        if (category === '単体商品') {
+            primaryBtn.innerHTML = '<ion-icon name="cart-outline"></ion-icon>仕入登録へ';
+            primaryBtn.className = 'action-select-btn purchase';
+        } else {
+            primaryBtn.innerHTML = '<ion-icon name="hammer-outline"></ion-icon>製造登録へ';
+            primaryBtn.className = 'action-select-btn manufacturing';
+        }
+
         const close = () => overlay.classList.remove('active');
 
-        document.getElementById('action-btn-manufacturing').onclick = () => {
+        primaryBtn.onclick = () => {
             close();
-            executeNavigation('manufacturing', 'make-item', itemName);
+            if (category === '単体商品') {
+                executeNavigation('purchase', 'buy-item', itemName);
+            } else {
+                executeNavigation('manufacturing', 'make-item', itemName);
+            }
         };
-        document.getElementById('action-btn-sales').onclick = () => {
+        salesBtn.onclick = () => {
             close();
             executeNavigation('sales', 'sale-item', itemName);
         };

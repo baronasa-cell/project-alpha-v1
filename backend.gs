@@ -176,6 +176,9 @@ function handleRequest(p) {
        case 'rebuildInventorySummary':
         result = rebuildInventorySummary();
         break;
+      case 'searchHistory':
+        result = { status: 'success', data: searchHistory(p.target, p.keyword, p.dateFrom, p.dateTo) };
+        break;
     }
 
     return result;
@@ -1411,6 +1414,88 @@ function formatColumn(sheet, rowIdx, headerName, formatString, cachedHeaders = n
 function roundTo2dp(val) {
   if (val === null || val === undefined || isNaN(val)) return 0;
   return Math.round(val * 100) / 100;
+}
+
+/**
+ * 過去履歴の検索 (全データから検索)
+ */
+function searchHistory(target = 'all', keyword = '', dateFrom = '', dateTo = '') {
+  console.time('searchHistory');
+  
+  let tables = [];
+  if (target === 'all') {
+    tables = ['T_仕入', 'T_経費', 'T_製造', 'T_販売'];
+  } else if (target === 'purchase') {
+    tables = ['T_仕入'];
+  } else if (target === 'expense') {
+    tables = ['T_経費'];
+  } else if (target === 'manufacturing') {
+    tables = ['T_製造'];
+  } else if (target === 'sales') {
+    tables = ['T_販売'];
+  }
+
+  const resultData = {};
+  const kw = keyword.toLowerCase();
+  
+  let fromTime = 0;
+  let toTime = Number.MAX_SAFE_INTEGER;
+  if (dateFrom) fromTime = new Date(dateFrom).getTime();
+  if (dateTo) {
+    const td = new Date(dateTo);
+    td.setHours(23, 59, 59, 999);
+    toTime = td.getTime();
+  }
+
+  tables.forEach(name => {
+    const values = DataCache.getValues(name);
+    if (!values || values.length < 2) {
+      resultData[name] = values || [];
+      return;
+    }
+
+    const headers = values[0];
+    const dateCols = ['入庫日', '完了日', '取引完了日', '仕入日', '製造完了日', '販売開始日', '取引開始日', '製造開始日'];
+    let dateIdx = -1;
+    for (let col of dateCols) {
+      dateIdx = headers.indexOf(col);
+      if (dateIdx !== -1) break;
+    }
+
+    const filtered = [headers];
+    for (let i = 1; i < values.length; i++) {
+      const row = values[i];
+      let matchKeyword = false;
+      let matchDate = true;
+
+      // キーワードチェック (行全体を文字列化して検索)
+      if (kw) {
+        const rowStr = row.join(' ').toLowerCase();
+        if (rowStr.indexOf(kw) !== -1) {
+          matchKeyword = true;
+        }
+      } else {
+        matchKeyword = true;
+      }
+
+      // 日付チェック
+      if (dateIdx !== -1 && (fromTime > 0 || toTime < Number.MAX_SAFE_INTEGER)) {
+        const d = new Date(row[dateIdx]);
+        if (!isNaN(d.getTime())) {
+          const t = d.getTime();
+          if (t < fromTime || t > toTime) matchDate = false;
+        }
+      }
+
+      if (matchKeyword && matchDate) {
+        filtered.push(row);
+      }
+    }
+    resultData[name] = filtered;
+  });
+
+  console.timeEnd('searchHistory');
+  return { isRaw: true, rawData: resultData, scope: 'search' };
 }
 
 function fetchMasterData(includeInactive = false) {

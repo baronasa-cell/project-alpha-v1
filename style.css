@@ -1390,22 +1390,31 @@ input:checked + .slider:before {
     transition: height 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.bar.income { background: linear-gradient(to top, var(--accent-green), #4ade80); }
-.bar.expense { background: linear-gradient(to top, #ef4444, #f87171); }
+.bar.income { background: #16a34a; }
+.bar.expense { background: #dc2626; }
+.bar.personal-bar { background: #2563eb; }
 
 /* 遨榊ｱ､繝舌�繧ｹ繧ｿ繧､繝ｫ */
 .bar-stack {
     width: 14px;
     border-radius: 4px 4px 0 0;
     overflow: hidden;
+    display: flex;
+    flex-direction: column-reverse;
+    transition: height 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 .bar-segment {
     width: 100%;
 }
-.bar-segment.income { background: var(--accent-green); }
-.bar-segment.personal { background: #94ead3; } /* 阮�＞髱堤ｷ� */
+.bar-segment.income { background: #16a34a; }
+.bar-segment.personal { 
+    background: #2563eb; 
+    border-bottom: 1px solid #ffffff;
+}
 
-.dot.personal { background: #94ead3; }
+.dot.income { background: #16a34a; }
+.dot.expense { background: #dc2626; }
+.dot.personal { background: #2563eb; }
 
 .bar-label {
     position: absolute;
@@ -4109,6 +4118,12 @@ th.sticky-col {
     border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
+.alert-processing-badge.sales {
+    background: rgba(139, 92, 246, 0.15); /* Purple */
+    color: #5b21b6;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
 /* 蝨ｨ蠎ｫ蛻�ｌ(critical)繧ｫ繝ｼ繝牙�縺ｧ縺ｮ陦ｨ遉ｺ */
 .alert-card.critical .alert-processing-badge {
     background: rgba(255, 255, 255, 0.95);
@@ -4430,3 +4445,68 @@ th.sticky-col {
     transform: scale(0.9);
     background: var(--dark-green);
 }
+
+/* --- 売上分析用スタイル --- */
+.analysis-section {
+    background: var(--card-bg, #ffffff);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.analysis-section h3 {
+    font-size: 14px;
+    color: var(--dark-green);
+    margin-bottom: 12px;
+    font-weight: 700;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 6px;
+}
+
+.analysis-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.analysis-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(22, 163, 74, 0.03);
+    border-radius: 8px;
+    border-left: 4px solid var(--accent-green);
+}
+
+.analysis-item-rank {
+    font-weight: bold;
+    color: var(--accent-green);
+    width: 24px;
+}
+
+.analysis-item-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 10px;
+}
+
+.analysis-item-value {
+    text-align: right;
+}
+
+.analysis-item-amount {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--text-main);
+}
+
+.analysis-item-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+

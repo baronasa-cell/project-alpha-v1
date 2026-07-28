@@ -4949,9 +4949,11 @@ document.addEventListener('DOMContentLoaded', async () => {
      * 在庫一覧からカテゴリに応じた取引画面へ遷移し、対象品目を選択する (提案11改)
      */
     window.navigateToTransactionForm = (itemName, category) => {
+        const cleanCategory = (category || "").toString().trim();
+
         // カテゴリが「商品」または「単体商品」の場合は選択モーダルを表示 (提案18/25 B案・提案49)
-        if (category === '商品' || category === '単体商品') {
-            showActionSelectionModal(itemName, category);
+        if (cleanCategory === '商品' || cleanCategory === '単体商品') {
+            showActionSelectionModal(itemName, cleanCategory);
             return;
         }
 
@@ -4959,13 +4961,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         let targetTab = 'purchase';
         let inputId = 'buy-item';
 
-        if (category === 'パーツ2') {
+        if (cleanCategory === 'パーツ2') {
             targetTab = 'manufacturing';
             inputId = 'make-item';
-        } else if (category === '経費') {
+        } else if (cleanCategory === '経費') {
             targetTab = 'expense';
             inputId = 'exp-item';
-        } else if (category === 'パーツ') {
+        } else if (cleanCategory === 'パーツ') {
             targetTab = 'purchase';
             inputId = 'buy-item';
         }

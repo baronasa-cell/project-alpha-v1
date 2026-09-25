@@ -820,7 +820,14 @@
                         <label>部材名</label>
                         <input type="text" id="add-material-item" list="product-list" placeholder="部材名を検索・入力">
                     </div>
-
+                    <div class="input-group">
+                        <label>数量</label>
+                        <input type="number" id="add-material-quantity" value="1" min="1">
+                    </div>
+                    <div class="input-group">
+                        <label>理由/備考</label>
+                        <input type="text" id="add-material-reason" placeholder="追加の理由など">
+                    </div>
                 </div>
                 <div style="margin-top: 24px; display: flex; gap: 12px;">
                     <button type="button" id="add-material-cancel" class="primary-btn outline-btn">キャンセル</button>

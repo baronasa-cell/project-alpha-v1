@@ -43,6 +43,14 @@
                     <ion-icon name="refresh-circle-outline"></ion-icon>
                     <span>在庫の全再集計</span>
                 </li>
+                <li class="menu-item" id="menu-sales-analysis-btn">
+                    <ion-icon name="bar-chart-outline"></ion-icon>
+                    <span>売上分析</span>
+                </li>
+                <li class="menu-item" id="menu-history-search-btn">
+                    <ion-icon name="search-outline"></ion-icon>
+                    <span>過去履歴検索</span>
+                </li>
             </ul>
             <div class="menu-footer">
                 <p>Ver 1.0.0</p>
@@ -935,7 +943,14 @@
                         <label>部材名</label>
                         <input type="text" id="add-material-item" list="product-list" placeholder="部材名を検索・入力">
                     </div>
-
+                    <div class="input-group">
+                        <label>数量</label>
+                        <input type="number" id="add-material-quantity" value="1" min="1">
+                    </div>
+                    <div class="input-group">
+                        <label>理由/備考</label>
+                        <input type="text" id="add-material-reason" placeholder="追加の理由など">
+                    </div>
                 </div>
                 <div style="margin-top: 24px; display: flex; gap: 12px;">
                     <button type="button" id="add-material-cancel" class="primary-btn outline-btn">キャンセル</button>
@@ -979,6 +994,115 @@
                     <ion-icon name="image-outline"></ion-icon> 画像を選択/撮影
                 </button>
                 <button id="scanner-close-btn" class="btn-secondary">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 売上分析モーダル -->
+    <div id="sales-analysis-modal" class="modal" style="display: none;">
+        <div class="modal-container glass-card" style="height: 90vh; max-height: 90vh; width: 95%; max-width: 600px; display: flex; flex-direction: column;">
+            <header class="modal-header">
+                <div class="header-left">
+                    <ion-icon name="bar-chart-outline" style="color: var(--accent-green); font-size: 20px;"></ion-icon>
+                    <h2>売上分析</h2>
+                </div>
+                <button id="sales-analysis-close-btn" class="icon-btn">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </header>
+            <div class="modal-content" style="flex: 1; overflow-y: auto; padding: 15px;">
+                <!-- 期間選択 -->
+                <div class="filter-group" style="margin-bottom: 15px;">
+                    <div class="filter-row">
+                        <span class="filter-label">期間:</span>
+                        <select id="sales-analysis-period-select" class="form-input">
+                            <option value="current_month">今月</option>
+                            <option value="last_month">先月</option>
+                            <option value="current_year">今年</option>
+                            <option value="all">全期間</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="analysis-section">
+                    <h3>商品別売上ランキング</h3>
+                    <div id="analysis-product-ranking" class="analysis-card-list"></div>
+                </div>
+                
+                <div class="analysis-section" style="margin-top: 20px;">
+                    <h3>売先別売上分析</h3>
+                    <div id="analysis-buyer-ranking" class="analysis-card-list"></div>
+                </div>
+
+                <div class="analysis-section" style="margin-top: 20px;">
+                    <h3>月別利益率推移</h3>
+                    <div id="analysis-profit-margin" class="analysis-card-list"></div>
+                </div>
+
+                <div class="analysis-section" style="margin-top: 20px;">
+                    <h3>収支サマリー（年間俯瞰）</h3>
+                    <div class="table-responsive">
+                        <table class="ledger-table">
+                            <thead>
+                                <tr><th>月</th><th>売上</th><th>経費</th><th>粗利</th></tr>
+                            </thead>
+                            <tbody id="analysis-yearly-summary"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 過去履歴検索モーダル -->
+    <div id="history-search-modal" class="modal" style="display: none;">
+        <div class="modal-container glass-card" style="height: 90vh; max-height: 90vh; width: 95%; max-width: 600px; display: flex; flex-direction: column;">
+            <header class="modal-header">
+                <div class="header-left">
+                    <ion-icon name="search-outline" style="color: var(--accent-green); font-size: 20px;"></ion-icon>
+                    <h2>過去履歴検索</h2>
+                </div>
+                <button id="history-search-close-btn" class="icon-btn">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </header>
+            <div class="modal-content" style="flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column;">
+                <div class="search-filters" style="margin-bottom: 15px; background: var(--card-bg); padding: 10px; border-radius: 8px;">
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label>検索キーワード (品名/摘要など)</label>
+                        <input type="text" id="history-search-keyword" class="form-input" placeholder="キーワードを入力...">
+                    </div>
+                    <div class="form-row" style="margin-bottom: 10px;">
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label>期間 (From)</label>
+                            <input type="date" id="history-search-from" class="form-input">
+                        </div>
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label>期間 (To)</label>
+                            <input type="date" id="history-search-to" class="form-input">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label>対象</label>
+                        <select id="history-search-target" class="form-input">
+                            <option value="all">すべて（仕入/経費/製造/販売）</option>
+                            <option value="purchase">仕入</option>
+                            <option value="expense">経費</option>
+                            <option value="manufacturing">製造</option>
+                            <option value="sales">販売</option>
+                        </select>
+                    </div>
+                    <button id="history-search-execute-btn" class="primary-btn" style="width: 100%; margin-top: 5px;">
+                        <ion-icon name="search-outline"></ion-icon> 検索実行
+                    </button>
+                </div>
+                
+                <div id="history-search-results" class="history-list" style="flex: 1; overflow-y: auto;">
+                    <div class="empty-history">
+                        <ion-icon name="search-outline"></ion-icon>
+                        <p>条件を指定して検索してください</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

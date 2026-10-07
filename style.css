@@ -2161,6 +2161,29 @@ input:checked + .slider:before {
     border-color: var(--accent-blue);
 }
 
+.ledger-personal-check-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    font-size: 0.85em;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.ledger-personal-check-label input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: var(--accent-green);
+    width: 15px;
+    height: 15px;
+}
+
 /* 驛｢�ｧ�ｽ�ｰ驛｢譎｢�ｽ�ｩ驛｢譎�ｽｼ譁絶ｳ驛｢譎｢�ｽ�ｼ驛｢譎臥櫨�ｽ�ｽ驍ｵ�ｺ�ｽ�ｮ驛｢譎�ｽｼ譁絶襖驛｢譎｢�ｽ�ｫ驛｢�ｧ�ｽ�ｿ驛｢�ｧ陝ｶ譎�峩鬮ｯ�ｦ�ｽ�ｨ鬩穂ｼ夲ｽｽ�ｺ驍ｵ�ｺ�ｽ�ｫ驍ｵ�ｺ陷ｷ�ｶ�ｽ遏ｩ蝮｡�ｽ�ｿ髫ｰ�ｨ�ｽ�ｴ */
 .card-header-with-filter .period-filter {
     display: none;

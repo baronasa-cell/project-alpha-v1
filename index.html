@@ -156,6 +156,9 @@
                             </button>
                         </div>
 
+                        <!-- 帳票出力ステータスエリア -->
+                        <div id="ledger-export-status" class="export-status-area" style="display: none; margin: 10px 0; padding: 10px 14px; border-radius: 8px; font-size: 0.9em;"></div>
+
                         <div class="detailed-table-wrapper">
                             <table class="detailed-table">
                                 <thead>
@@ -1011,16 +1014,26 @@
                 </button>
             </header>
             <div class="modal-content" style="flex: 1; overflow-y: auto; padding: 15px;">
-                <!-- 期間選択 -->
+                <!-- 期間・区分選択 -->
                 <div class="filter-group" style="margin-bottom: 15px;">
-                    <div class="filter-row">
-                        <span class="filter-label">期間:</span>
-                        <select id="sales-analysis-period-select" class="form-input">
-                            <option value="current_month">今月</option>
-                            <option value="last_month">先月</option>
-                            <option value="current_year">今年</option>
-                            <option value="all">全期間</option>
-                        </select>
+                    <div class="filter-row" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 130px; display: flex; align-items: center; gap: 8px;">
+                            <span class="filter-label">期間:</span>
+                            <select id="sales-analysis-period-select" class="form-input" style="flex: 1;">
+                                <option value="current_month">今月</option>
+                                <option value="last_month">先月</option>
+                                <option value="current_year">今年</option>
+                                <option value="all">全期間</option>
+                            </select>
+                        </div>
+                        <div style="flex: 1; min-width: 130px; display: flex; align-items: center; gap: 8px;">
+                            <span class="filter-label">対象:</span>
+                            <select id="sales-analysis-type-select" class="form-input" style="flex: 1;">
+                                <option value="business">事業のみ</option>
+                                <option value="all">事業＋個人</option>
+                                <option value="personal">個人のみ</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 

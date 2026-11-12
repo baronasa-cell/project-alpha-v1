@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let lastRawData = {};    // サーバーから届いた生データを保持（マージ用）
     let ledgerYear = new Date().getFullYear();
     let ledgerPeriod = String(new Date().getMonth() + 1).padStart(2, '0'); // デフォルトは「今月」
+    let ledgerIncludePersonal = false; // 月次明細の個人合算フラグ（デフォルト: 事業のみ）
 
     let isStocktakeMode = false;
     let stocktakeData = {}; // { itemName: { actual: number, diff: number } }
@@ -490,6 +491,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         const recentActions = recentAll
             .sort((a, b) => b.date - a.date)
             .slice(0, 5);
+
+        // T_帳簿の個人レコード（事業/個人 == 1）をpersonalSalesByMonthにマージ集計
+        if (rawData['T_帳簿']) {
+            const ledgerList = convertRawToObjects(rawData['T_帳簿']);
+            const ledgerPersonalByMonth = {};
+            ledgerList.forEach(r => {
+                if (String(r['事業/個人']).trim() === '1') {
+                    const price = parseFloat(r['売上'] || 0);
+                    const d = new Date(r['日付']);
+                    if (!isNaN(d.getTime())) {
+                        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        ledgerPersonalByMonth[ym] = (ledgerPersonalByMonth[ym] || 0) + price;
+                    }
+                }
+            });
+            // T_帳簿に個人データがある月はT_帳簿の値を優先採用
+            for (const ym in ledgerPersonalByMonth) {
+                personalSalesByMonth[ym] = ledgerPersonalByMonth[ym];
+            }
+        }
 
         console.timeEnd('Client:processClientData');
         return {
@@ -3446,6 +3467,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderInventoryAlerts();
 
         const ledger = lastHistoryData.ledger;
+        const personalSalesByMonth = ledgerIncludePersonal ? (lastHistoryData.personalSalesByMonth || {}) : {};
         const recentActions = lastHistoryData.recentActions || [];
 
         // 選択されている期間文字列 (例: "2026-04", "2026-FY", "2026-Q1")
@@ -3470,6 +3492,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     else if (String(m).padStart(2, '0') === targetP) match = true;
                 }
                 if (match) {
+                    const isPersonal = String(row['事業/個人']).trim() === '1';
+                    if (isPersonal) return; // 事業用集計のため個人はスキップ
                     const s = parseNumber(row['売上']);
                     const cost = parseNumber(row['仕入']) + parseNumber(row['通信費']) + parseNumber(row['修繕費']) +
                         parseNumber(row['消耗品費']) + parseNumber(row['諸会費']) + parseNumber(row['支払手数料']) + parseNumber(row['雑費']);
@@ -3480,8 +3504,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             // 個人用売上の集計
-            const psData = (lastHistoryData && lastHistoryData.personalSalesByMonth) || {};
-            for (const ym in psData) {
+            for (const ym in personalSalesByMonth) {
                 const [y, m] = ym.split('-');
                 if (String(y) === String(targetY)) {
                     let match = false;
@@ -3492,7 +3515,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     else if (targetP === 'Q4') match = (parseInt(m) >= 10 && parseInt(m) <= 12);
                     else if (m === targetP) match = true;
 
-                    if (match) res.personalSales += psData[ym];
+                    if (match) res.personalSales += personalSalesByMonth[ym];
                 }
             }
             return res;
@@ -3569,16 +3592,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (isNaN(d.getTime())) return;
             const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             if (!monthlySum[ym]) monthlySum[ym] = { sales: 0, cost: 0 };
+            const isPersonal = String(row['事業/個人']).trim() === '1';
             const s = parseNumber(row['売上']);
             const cost = parseNumber(row['仕入']) + parseNumber(row['通信費']) + parseNumber(row['修繕費']) +
                 parseNumber(row['消耗品費']) + parseNumber(row['諸会費']) + parseNumber(row['支払手数料']) + parseNumber(row['雑費']);
-            monthlySum[ym].sales += s;
-            monthlySum[ym].cost += cost;
+            if (!isPersonal) {
+                // 事業のみグラフの売上・費用に計上（個人売上はpersonalSalesByMonthから積み上げ描画）
+                monthlySum[ym].sales += s;
+                monthlySum[ym].cost += cost;
+            }
         });
 
-        // フィルタリング対象の明細
+        // フィルタリング対象の明細（月次明細用）
         const filteredLedger = [];
         ledger.forEach(row => {
+            const isPersonal = String(row['事業/個人']).trim() === '1';
+            // 個人チェックOFF（デフォルト）の場合は個人レコードを除外
+            if (!ledgerIncludePersonal && isPersonal) return;
+
             const d = new Date(row['日付']);
             if (isNaN(d.getTime())) return;
             const y = d.getFullYear();
@@ -3597,7 +3628,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // グラフ描画：トレンドの決定
         const chartBars = document.querySelector('.chart-bars');
-        const personalSalesByMonth = (lastHistoryData && lastHistoryData.personalSalesByMonth) || {};
+        const legend = document.querySelector('.chart-legend');
+        legend?.querySelector('.dot.personal')?.closest('.legend-item')?.remove();
         if (chartBars && Object.keys(monthlySum).length > 0) {
             const allMonths = Object.keys(monthlySum).sort();
             let monthsToShow = [];
@@ -3677,8 +3709,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // 凡例に「個人」を追加（個人用データがある場合）
             const hasPersonalData = monthsToShow.some(m => personalSalesByMonth[m] > 0);
-            const legend = document.querySelector('.chart-legend');
-            if (legend && hasPersonalData && !legend.querySelector('.dot.personal')) {
+            if (legend && hasPersonalData) {
                 const personalLegend = document.createElement('div');
                 personalLegend.className = 'legend-item';
                 personalLegend.innerHTML = '<div class="dot personal"></div>個人';
@@ -3863,6 +3894,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             return `<option value="${val}" ${ledgerPeriod == val ? 'selected' : ''}>${i + 1}月</option>`;
         }).join('')}
                     </select>
+                    <label class="ledger-personal-check-label" title="チェックを入れると月次明細に個人取引も合算します">
+                        <input type="checkbox" id="ledger-include-personal-check" ${ledgerIncludePersonal ? 'checked' : ''}>
+                        <span>個人</span>
+                    </label>
                 </div>
             </div>
         `;
@@ -3891,13 +3926,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             };
         }
+        const personalCheck = document.getElementById('ledger-include-personal-check');
+        if (personalCheck) {
+            personalCheck.onchange = (e) => {
+                ledgerIncludePersonal = e.target.checked;
+                renderLedger();
+            };
+        }
     }
 
     /**
      * 帳簿データをエクスポート
      */
     async function handleLedgerExport() {
-        if (!confirm(`${ledgerYear}年${ledgerPeriod}の帳簿レポートをスプレッドシートに出力しますか？`)) return;
+        const typeText = ledgerIncludePersonal ? '（事業＋個人）' : '（事業のみ）';
+        if (!confirm(`${ledgerYear}年${ledgerPeriod}の帳簿レポート${typeText}をスプレッドシートに出力しますか？`)) return;
 
         const statusArea = document.getElementById('ledger-export-status');
         if (!statusArea) return;
@@ -3913,9 +3956,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             setLoading(true, '帳簿レポートを生成中...');
             statusArea.style.display = 'block';
             statusArea.className = 'export-status-area info';
-            statusArea.innerHTML = `<p>出力中... (${period})</p>`;
+            statusArea.innerHTML = `<p>出力中... (${period} ${typeText})</p>`;
 
-            const response = await fetchAPI('exportLedgerReport', { period: period });
+            const response = await fetchAPI('exportLedgerReport', { period: period, includePersonal: !!ledgerIncludePersonal });
 
             if (response.status === 'success') {
                 showToast('レポート出力が完了しました');

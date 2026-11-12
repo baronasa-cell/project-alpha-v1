@@ -159,7 +159,7 @@ function handleRequest(p) {
         result = updateStockBulk(p.thresholdUpdates, p.statusUpdates);
         break;
       case 'exportLedgerReport':
-        result = exportLedgerReport(p.period);
+        result = exportLedgerReport(p.period, p.includePersonal === true);
         break;
       case 'uploadProductImage':
         result = uploadProductImage(p.itemName, p.base64);
@@ -1058,11 +1058,18 @@ function recordInventory(refId, type, itemName, qty, unitPrice, vendorName = "",
 function syncToLedger(sheetName, id, data) {
   // 帳簿記録の対象外シートのガード
   if (sheetName === 'T_製造' || sheetName === 'T_仕入') return; 
-  if (sheetName === 'T_販売' && (data['管理区分'] == 1 || data['管理対象外'] == 1)) return;
 
   const ledgerSheet = SS.getSheetByName('T_帳簿');
-  const headers = ledgerSheet.getDataRange().getValues()[0].map(h => h.toString().trim());
+  let headers = ledgerSheet.getDataRange().getValues()[0].map(h => h.toString().trim());
   
+  // K列（事業/個人）が存在しない場合は自動追加
+  let typeCol = headers.indexOf('事業/個人');
+  if (typeCol === -1) {
+    ledgerSheet.getRange(1, headers.length + 1).setValue('事業/個人');
+    headers.push('事業/個人');
+    typeCol = headers.length - 1;
+  }
+
   let row = new Array(headers.length).fill("");
   
   const dateCol = headers.indexOf('日付');
@@ -1082,6 +1089,9 @@ function syncToLedger(sheetName, id, data) {
   const price = parseFloat(data['合計金額'] || data['価格'] || data['販売価格'] || 0);
 
   if (sheetName === 'T_販売') {
+    const isPersonal = (data['管理区分'] == 1 || data['管理対象外'] == 1) ? 1 : 0;
+    if (typeCol !== -1) row[typeCol] = isPersonal;
+
     const buyer = data['売先'] || "";
     const item = data['品名'] || "";
     const qty = parseFloat(data['数量']) || 1;
@@ -1104,6 +1114,8 @@ function syncToLedger(sheetName, id, data) {
       row[feeCol] = parseFloat(data['手数料']) || 0;
     }
   } else if (sheetName === 'T_経費') {
+    if (typeCol !== -1) row[typeCol] = 0; // 経費は事業用
+
     const account = data['仕訳']; 
     const qty = parseFloat(data['数量']) || 0;
     const itemName = data['品名'] || "";
@@ -1721,7 +1733,7 @@ function updateStockBulk(thresholdUpdates, statusUpdates) {
 /**
  * 帳簿データのエクスポート (新しいスプレッドシートとして保存)
  */
-function exportLedgerReport(period) {
+function exportLedgerReport(period, includePersonal = false) {
   try {
     const ledgerSheet = SS.getSheetByName('T_帳簿');
     if (!ledgerSheet) throw new Error("帳簿シートが見つかりません。");
@@ -1737,12 +1749,27 @@ function exportLedgerReport(period) {
       const ym = `${y}-${String(m).padStart(2, '0')}`;
 
       if (selY !== String(y)) return false;
-      if (selM === 'FY') return true;
-      if (selM === 'Q1') return (m >= 1 && m <= 3);
-      if (selM === 'Q2') return (m >= 4 && m <= 6);
-      if (selM === 'Q3') return (m >= 7 && m <= 9);
-      if (selM === 'Q4') return (m >= 10 && m <= 12);
-      return ym === period;
+      if (selM === 'FY') {
+        // 全月対象
+      } else if (selM === 'Q1') {
+        if (m < 1 || m > 3) return false;
+      } else if (selM === 'Q2') {
+        if (m < 4 || m > 6) return false;
+      } else if (selM === 'Q3') {
+        if (m < 7 || m > 9) return false;
+      } else if (selM === 'Q4') {
+        if (m < 10 || m > 12) return false;
+      } else if (ym !== period) {
+        return false;
+      }
+
+      // 個人チェックが無い場合は事業のみ（K列が 1 以外のもの）を対象
+      if (!includePersonal) {
+        const isPersonal = String(row['事業/個人']).trim() === '1';
+        if (isPersonal) return false;
+      }
+
+      return true;
     });
 
     if (filtered.length === 0) return { status: 'error', message: '対象期間にデータがありません。' };
@@ -1758,7 +1785,8 @@ function exportLedgerReport(period) {
     const newSheet = newSS.getSheets()[0];
     newSheet.setName('レポート');
 
-    newSheet.getRange(1, 1).setValue(`${periodName} 帳簿`).setFontSize(14).setFontWeight('bold');
+    const reportTitle = `${periodName} 帳簿` + (includePersonal ? ' (事業＋個人)' : ' (事業)');
+    newSheet.getRange(1, 1).setValue(reportTitle).setFontSize(14).setFontWeight('bold');
 
     const rawHeaders = ledgerSheet.getRange(1, 1, 1, 10).getValues()[0];
     const headers = [...rawHeaders, '粗利'];
@@ -1804,6 +1832,172 @@ function exportLedgerReport(period) {
   } catch (e) {
     return { status: 'error', message: e.toString() };
   }
+}
+
+/**
+ * 過去の個人販売データをT_帳簿へ一括移行する管理用関数 (1回限り実行用)
+ */
+function migratePersonalSalesToLedger() {
+  const salesSheet = SS.getSheetByName('T_販売');
+  const ledgerSheet = SS.getSheetByName('T_帳簿');
+  if (!salesSheet || !ledgerSheet) throw new Error("対象シートが見つかりません。");
+
+  // T_帳簿のヘッダー取得とK列「事業/個人」の確保
+  let ledgerHeaders = ledgerSheet.getDataRange().getValues()[0].map(h => h.toString().trim());
+  let typeCol = ledgerHeaders.indexOf('事業/個人');
+  if (typeCol === -1) {
+    ledgerSheet.getRange(1, ledgerHeaders.length + 1).setValue('事業/個人');
+    ledgerHeaders.push('事業/個人');
+    typeCol = ledgerHeaders.length - 1;
+  }
+
+  const dateCol = ledgerHeaders.indexOf('日付');
+  const descCol = ledgerHeaders.indexOf('品名');
+  const incomeCol = ledgerHeaders.indexOf('売上');
+  const costCol = ledgerHeaders.indexOf('仕入');
+  const commFeeCol = ledgerHeaders.indexOf('通信費');
+  const feeCol = ledgerHeaders.indexOf('支払手数料');
+
+  // 既存T_帳簿データの読み込み
+  const ledgerData = ledgerSheet.getDataRange().getValues();
+  const existingPersonalRecords = new Set();
+  let existingPersonalFlaggedCount = 0;
+
+  for (let r = 1; r < ledgerData.length; r++) {
+    const row = ledgerData[r];
+    const rowDate = row[dateCol];
+    const rowDesc = String(row[descCol] || "").trim();
+    const rowIncome = parseNumber(row[incomeCol]);
+    const rowType = String(row[typeCol] || "").trim();
+    
+    const isManualPersonal = rowDesc.includes('個人取引:');
+    const isMarkedPersonal = (rowType === '1');
+
+    // 既存データで「個人取引:」が含まれている場合、K列を「1」に更新
+    if (isManualPersonal && rowType !== '1') {
+      ledgerSheet.getRange(r + 1, typeCol + 1).setValue(1);
+      existingPersonalFlaggedCount++;
+    }
+
+    // 重複照合の対象は「個人取引」として記録されているレコードのみとする（事業用データとは照合しない）
+    if ((isManualPersonal || isMarkedPersonal) && rowDate) {
+      const d = new Date(rowDate);
+      if (!isNaN(d.getTime())) {
+        const dStr = Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy/MM/dd");
+        // 品名の正規化（「個人取引:」や空白記号を除去して比較）
+        const cleanDesc = rowDesc.replace(/個人取引:/g, "").replace(/\s+/g, "");
+        const key = `${dStr}_${rowIncome}_${cleanDesc}`;
+        existingPersonalRecords.add(key);
+      }
+    }
+  }
+
+  // T_販売データの読み込み
+  const salesObjects = getSheetDataAsObjects(salesSheet);
+  const rowsToAdd = [];
+  let skippedAdjustCount = 0;
+  let skippedDuplicateCount = 0;
+  let skippedNotTargetCount = 0;
+  let addedCount = 0;
+
+  salesObjects.forEach(item => {
+    const status = String(item['ステータス'] || "").trim();
+    if (status !== '完了') {
+      skippedNotTargetCount++;
+      return;
+    }
+
+    // 個人取引判定 (管理区分 == 1 または 管理対象外 == 1)
+    const isPersonal = (item['管理区分'] == 1 || item['管理対象外'] == 1);
+    if (!isPersonal) {
+      skippedNotTargetCount++;
+      return;
+    }
+
+    // 発送（発送方法）が「調整用」のものは移行対象外
+    const shipping = String(item['発送方法'] || item['発送'] || "").trim();
+    if (shipping === '調整用') {
+      skippedAdjustCount++;
+      Logger.log(`[スキップ: 調整用] ID: ${item['販売ID']}, 発送: 調整用`);
+      return;
+    }
+
+    const compDateStr = item['取引完了日'] || "";
+    const compDate = new Date(compDateStr);
+    if (isNaN(compDate.getTime())) {
+      skippedNotTargetCount++;
+      return;
+    }
+
+    const compDateFormatted = Utilities.formatDate(compDate, Session.getScriptTimeZone(), "yyyy/MM/dd");
+    const cutoffDate = new Date("2026/04/01");
+
+    // 品名の決定ルール
+    let itemName = "";
+    if (compDate < cutoffDate || String(item['品名'] || "").trim() === '個人取引（在庫管理なし）') {
+      // 旧システムデータ: 備考から品名を取得
+      itemName = String(item['備考'] || "").trim();
+    } else {
+      // 新システムデータ: 品名から取得
+      itemName = String(item['品名'] || "").trim();
+    }
+    if (!itemName) itemName = "個人取引";
+
+    const buyer = String(item['売先'] || "").trim();
+    const qty = parseFloat(item['数量']) || 1;
+    let desc = buyer ? `${buyer} ${itemName}` : itemName;
+    if (qty > 1) {
+      desc += "×" + qty;
+    }
+
+    const price = parseFloat(item['合計金額'] || item['価格'] || item['販売価格'] || 0);
+
+    // 重複チェック（既存の個人取引レコードのみと照合）
+    const cleanDesc = desc.replace(/個人取引:/g, "").replace(/\s+/g, "");
+    const matchKey = `${compDateFormatted}_${price}_${cleanDesc}`;
+
+    if (existingPersonalRecords.has(matchKey)) {
+      skippedDuplicateCount++;
+      Logger.log(`[スキップ: 登録済重複] ID: ${item['販売ID']}, 日付: ${compDateFormatted}, 売上: ${price}, 品名: ${desc}`);
+      return;
+    }
+
+    // T_帳簿用レコードの作成
+    let newRow = new Array(ledgerHeaders.length).fill("");
+    if (dateCol !== -1) newRow[dateCol] = compDateFormatted;
+    if (descCol !== -1) newRow[descCol] = desc;
+    if (incomeCol !== -1) newRow[incomeCol] = price;
+    if (costCol !== -1) newRow[costCol] = parseFloat(item['合計単価']) || 0;
+    if (commFeeCol !== -1) newRow[commFeeCol] = parseFloat(item['送料']) || 0;
+    if (feeCol !== -1) newRow[feeCol] = parseFloat(item['手数料']) || 0;
+    if (typeCol !== -1) newRow[typeCol] = 1; // 個人
+
+    rowsToAdd.push(newRow);
+    existingPersonalRecords.add(matchKey);
+    addedCount++;
+  });
+
+  if (rowsToAdd.length > 0) {
+    const startRow = ledgerSheet.getLastRow() + 1;
+    ledgerSheet.getRange(startRow, 1, rowsToAdd.length, ledgerHeaders.length).setValues(rowsToAdd);
+    
+    // 日付順にソート
+    const totalRows = ledgerSheet.getLastRow();
+    if (totalRows > 1) {
+      ledgerSheet.getRange(2, 1, totalRows - 1, ledgerHeaders.length).sort({column: 1, ascending: true});
+    }
+  }
+
+  const resultMsg = `移行結果: 新規追加 ${addedCount} 件, スキップ計 ${skippedAdjustCount + skippedDuplicateCount} 件 (内訳: 調整用 ${skippedAdjustCount} 件, 登録済重複 ${skippedDuplicateCount} 件), 既存手動データのK列フラグ設定 ${existingPersonalFlaggedCount} 件`;
+  Logger.log(resultMsg);
+  return { 
+    status: 'success', 
+    message: resultMsg, 
+    addedCount, 
+    skippedAdjustCount, 
+    skippedDuplicateCount, 
+    existingPersonalFlaggedCount 
+  };
 }
 
 /**

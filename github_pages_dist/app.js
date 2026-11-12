@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ---- API Configuration ----
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzexidaVzlRQ1_StDZo6Oo_oOt9TtX33Nk2sPwbo-oDzuRW6_Tbt2_zQxlxv-Ctr4jZuA/exec';
     let currentAuthKey = localStorage.getItem('inventory_auth_key') || '';
-    let useMock = false;
 
     // Global state
     let currentMasters = {};
@@ -708,16 +707,6 @@ document.addEventListener('DOMContentLoaded', async () => {
      * API通信の共通処理 (GAS本番環境とローカル環境を自動判別)
      */
     async function fetchAPI(action, payload = {}) {
-        if (useMock) {
-            if (window.MockAPI) {
-                if (action === 'getMasters') return window.MockAPI.getMasterData();
-                if (action === 'registerTransaction') return window.MockAPI.registerTransaction(payload.sheet, payload.data);
-                if (action === 'updateTransaction') return window.MockAPI.updateTransaction(payload.id, payload.updates);
-                if (action === 'verifyAndAddMaster') return window.MockAPI.verifyAndAddMaster(payload.sheet, payload.value);
-            }
-            return { status: 'error', message: 'Mock API not found' };
-        }
-
         const bodyData = Object.assign({ action: action, key: currentAuthKey }, payload);
         
         if (!currentAuthKey && action !== 'getInitData') {

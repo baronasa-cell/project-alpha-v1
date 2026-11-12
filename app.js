@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ---- API Configuration ----
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzY_IuQn_5tG_bGBP459xIPoekQoeEdxEo5nfIO3yeC8chmyHicQNzjgseGXtlol2q0SA/exec';
-    let currentAuthKey = localStorage.getItem('inventory_auth_key') || '';
+    let currentAuthKey = '';
+    localStorage.removeItem('inventory_auth_key');
 
     // Global state
     let currentMasters = {};
@@ -179,13 +180,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 初期化完了後に検索ボタンを配置
         initQuickSearchButtons();
-        if (typeof google === 'undefined' && !currentAuthKey) {
-            setupLoginHandlers();
+        await new Promise(resolve => {
+            setupLoginHandlers(resolve);
             showLoginModal();
-            return; // ログイン完了まで中断
-        }
-        setupLoginHandlers(); // リトライ用などに常にセットアップ
-
+        });
         // 認証済みの場合、即座にコンテナを表示 (読み込み中アニメーションを表示させるため)
         const appContainer = document.querySelector('.app-container');
         if (appContainer) {
@@ -795,7 +793,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 google.script.run
                     .withSuccessHandler(res => {
                         if (!res) reject(new Error("Server returned null response"));
-                        else if (res.status === 'error' && res.message.includes('Unauthorized')) {
+                        else if (action !== 'checkAuth' && res.status === 'error' && res.message.includes('Unauthorized')) {
                             handleUnauthorized();
                             reject(new Error(res.message));
                         }
@@ -821,7 +819,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             const result = await response.json();
-            if (result.status === 'error' && result.message.includes('Unauthorized')) {
+            if (action !== 'checkAuth' && result.status === 'error' && result.message.includes('Unauthorized')) {
                 console.error(`[fetchAPI] Unauthorized error for action: ${action}`, result);
                 handleUnauthorized();
             }
@@ -836,19 +834,10 @@ document.addEventListener('DOMContentLoaded', async () => {
      * 認証エラー時の処理
      */
     function handleUnauthorized() {
-        localStorage.removeItem('inventory_auth_key');
         currentAuthKey = '';
+        const appContainer = document.querySelector('.app-container');
+        if (appContainer) appContainer.style.display = 'none';
         showLoginModal();
-    }
-
-    /**
-     * パスワードをハッシュ化 (SHA-256)
-     */
-    async function hashPassword(password) {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(password);
-        const hash = await crypto.subtle.digest('SHA-256', data);
-        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     /**
@@ -865,7 +854,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     /**
      * ログイン関連のイベントハンドラ設定
      */
-    function setupLoginHandlers() {
+    function setupLoginHandlers(onFirstLogin) {
         const submitBtn = document.getElementById('login-submit-btn');
         const passwordInput = document.getElementById('login-password');
         const errorMsg = document.getElementById('login-error');
@@ -881,30 +870,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             errorMsg.style.display = 'none';
 
             try {
-                // バックエンドでハッシュ化を行うため、ここでは生のパスワードを送信
-                const bodyData = { action: 'getInitData', key: password, scope: 'check' };
-                const response = await fetch(GAS_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(bodyData)
-                });
-
-                const result = await response.json();
+                const result = await fetchAPI('checkAuth', { key: password });
 
                 if (result.status === 'success') {
                     // 認証成功
                     currentAuthKey = password;
-                    localStorage.setItem('inventory_auth_key', password);
+                    passwordInput.value = '';
                     document.getElementById('login-modal').style.display = 'none';
 
-                    // システムコンテナを表示（重要：ブランク画面回避）
-                    const appContainer = document.querySelector('.app-container');
-                    if (appContainer) {
-                        appContainer.style.display = 'flex';
+                    if (onFirstLogin) {
+                        onFirstLogin();
+                        onFirstLogin = null;
+                    } else {
+                        const appContainer = document.querySelector('.app-container');
+                        if (appContainer) appContainer.style.display = 'flex';
+                        await initSystem('all');
                     }
-
-                    // システム初期化を再開
-                    if (typeof showToast === 'function') showToast('システムを起動しています...', 'success');
-                    initSystem('all');
                 } else {
                     errorMsg.textContent = result.message || 'パスワードが正しくありません';
                     errorMsg.style.display = 'block';

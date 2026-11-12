@@ -10,7 +10,7 @@ const AUTH_KEY = (props.getProperty('AUTH_KEY') || props.getProperty('inventory_
 /**
  * 値を SHA-256 でハッシュ化する (認証用)
  */
-function hashValue(value) {
+function hashValue_(value) {
   if (!value) return "";
   const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, value);
   // Array.from を使って確実に JavaScript の配列として扱い、各バイトを 0-255 に変換してから 16進数文字列にする
@@ -68,16 +68,13 @@ const DataCache = {
  * google.script.run (本番環境) 用のエントリーポイント
  */
 function apiEntryPoint(payload) {
-  if (!payload) return { status: 'error', message: 'Payload is empty' };
-  console.log('API Request (google.script.run):', payload.action);
   
   try {
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     if (!spreadsheet) throw new Error('Spreadsheet not found or not accessible');
     
-    const result = handleRequest(payload);
+    const result = handleRequest_(payload);
     if (!result) {
-      console.error('handleRequest returned null for action:', payload.action);
       return { status: 'error', message: 'Handler returned no data' };
     }
     
@@ -98,16 +95,7 @@ function doPost(e) {
   try {
     lock.waitLock(30000);
     const p = JSON.parse(e.postData.contents);
-    const inputHash = hashValue(p.key);
-    
-    // セキュリティ強化: ハッシュ一致のみを許可 (生パスワードでの一致は認めない)
-    if (inputHash !== AUTH_KEY) {
-      const logMsg = `Auth Failure. Expected: [${AUTH_KEY}] (len:${AUTH_KEY.length}), Received: [${inputHash}] (len:${inputHash.length})`;
-      console.warn(logMsg);
-      Logger.log(logMsg); 
-      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Unauthorized' })).setMimeType(ContentService.MimeType.JSON);
-    }
-    const result = handleRequest(p);
+    const result = handleRequest_(p);
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
     return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: e.toString() })).setMimeType(ContentService.MimeType.JSON);
@@ -119,80 +107,77 @@ function doPost(e) {
 /**
  * リクエスト処理の共通ロジック
  */
-function handleRequest(p) {
+function handleRequest_(p) {
+  if (typeof p?.key !== 'string' || !p.key || !/^[0-9a-f]{64}$/.test(AUTH_KEY) || hashValue_(p.key) !== AUTH_KEY) {
+    return { status: 'error', message: 'Unauthorized' };
+  }
   const action = p.action;
-  const payload = p;
     
     let result = { status: 'error', message: 'Unknown action' };
 
     switch (action) {
+      case 'checkAuth':
+        result = { status: 'success' };
+        break;
       case 'getMasters':
-        result = { status: 'success', data: fetchMasterData(p.includeInactive === true) };
+        result = { status: 'success', data: fetchMasterData_(p.includeInactive === true) };
         break;
       case 'getInitData':
         var scope = p.scope || 'all';
-        var masters = (p.skipMasters === true) ? undefined : fetchMasterData(false);
-        result = { status: 'success', data: { masters: masters, historyData: fetchHistoryData(scope) } };
+        var masters = (p.skipMasters === true) ? undefined : fetchMasterData_(false);
+        result = { status: 'success', data: { masters: masters, historyData: fetchHistoryData_(scope)} };
         break;
       case 'verifyAndAddMaster':
-        result = verifyAndAddMaster(p.sheet, p.value);
+        result = verifyAndAddMaster_(p.sheet, p.value);
         break;
       case 'registerTransaction':
-        result = registerTransaction(p.sheet, p.data, p.scope);
+        result = registerTransaction_(p.sheet, p.data, p.scope);
         break;
       case 'registerBulk':
-        result = registerBulkTransactions(p.transactions, p.scope);
+        result = registerBulkTransactions_(p.transactions, p.scope);
         break;
       case 'updateTransaction':
-        result = updateTransaction(p.id, p.updates, p.scope);
+        result = updateTransaction_(p.id, p.updates, p.scope);
         break;
       case 'getHistory':
-        result = { status: 'success', data: fetchHistoryData() };
+        result = { status: 'success', data: fetchHistoryData_() };
         break;
       case 'updateStockThreshold':
-        result = updateStockThreshold(p.itemName, p.threshold);
+        result = updateStockThreshold_(p.itemName, p.threshold);
         break;
       case 'updateStockItemStatus':
-        result = updateStockItemStatus(p.itemName, p.status);
+        result = updateStockItemStatus_(p.itemName, p.status);
         break;
       case 'updateStockBulk':
-        result = updateStockBulk(p.thresholdUpdates, p.statusUpdates);
+        result = updateStockBulk_(p.thresholdUpdates, p.statusUpdates);
         break;
       case 'exportLedgerReport':
-        result = exportLedgerReport(p.period, p.includePersonal === true);
+        result = exportLedgerReport_(p.period, p.includePersonal === true);
         break;
       case 'uploadProductImage':
-        result = uploadProductImage(p.itemName, p.base64);
+        result = uploadProductImage_(p.itemName, p.base64);
         break;
       case 'registerStocktake':
-        result = registerStocktake(p.stocktakeData, p.note);
+        result = registerStocktake_(p.stocktakeData, p.note);
         break;
       case 'updateMasterRecord':
-        result = updateMasterRecord(p.masterName, p.id, p.updates);
+        result = updateMasterRecord_(p.masterName, p.id, p.updates);
         break;
       case 'addMaterialToManufacturing':
-        result = addMaterialToManufacturing(p.manufacturingId, p.item, p.quantity, p.reason);
+        result = addMaterialToManufacturing_(p.manufacturingId, p.item, p.quantity, p.reason);
         break;
        case 'rebuildInventorySummary':
-        result = rebuildInventorySummary();
+        result = rebuildInventorySummary_();
         break;
       case 'searchHistory':
-        result = { status: 'success', data: searchHistory(p.target, p.keyword, p.dateFrom, p.dateTo) };
+        result = { status: 'success', data: searchHistory_(p.target, p.keyword, p.dateFrom, p.dateTo) };
         break;
     }
 
     return result;
 }
 
-function doGet(e) {
-  // GETでもマスタ取得を可能にしておく
-  if (e.parameter && e.parameter.action === 'getMasters') {
-    return ContentService.createTextOutput(JSON.stringify({
-      status: 'success',
-      data: fetchMasterData()
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-
+function doGet() {
   // WebAppの表示
   return HtmlService.createTemplateFromFile('index')
       .evaluate()
@@ -201,7 +186,7 @@ function doGet(e) {
 }
 
 
-function include(filename) {
+function include_(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
@@ -213,7 +198,7 @@ function include(filename) {
  * 各種取引の登録処理
  * @param {string} scope 最新履歴を取得するスコープ（新規追加）
  */
-function registerTransaction(sheetName, data, scope = 'all') {
+function registerTransaction_(sheetName, data, scope = 'all') {
   const sheet = SS.getSheetByName(sheetName);
   if (!sheet) throw new Error("Sheet not found: " + sheetName);
 
@@ -222,7 +207,7 @@ function registerTransaction(sheetName, data, scope = 'all') {
   // 1. 自動採番
   const prefixes = { 'T_仕入': 'P', 'T_経費': 'E', 'T_製造': 'M', 'T_販売': 'S' };
   const prefix = prefixes[sheetName];
-  const idValue = generateNextId(sheet, prefix);
+  const idValue = generateNextId_(sheet, prefix);
   let masterAdded = false;
 
   // 2. ヘッダーに基づいたマッピング定義
@@ -238,27 +223,27 @@ function registerTransaction(sheetName, data, scope = 'all') {
 
   // 3. マスタ自動登録の実施とフラグ管理
   if (sheetName === 'T_仕入') {
-    if (data.vendor) if (verifyAndAddMaster('M_仕入先', data.vendor, 1).added) masterAdded = true;
-    if (data.payment) if (verifyAndAddMaster('M_支払', data.payment).added) masterAdded = true;
+    if (data.vendor) if (verifyAndAddMaster_('M_仕入先', data.vendor, 1).added) masterAdded = true;
+    if (data.payment) if (verifyAndAddMaster_('M_支払', data.payment).added) masterAdded = true;
     if (data.item) {
-        if (verifyAndAddMaster('M_商品', data.item, data.category || 'パーツ').added) masterAdded = true;
+        if (verifyAndAddMaster_('M_商品', data.item, data.category || 'パーツ').added) masterAdded = true;
     }
   } else if (sheetName === 'T_経費') {
-    if (data.vendor) if (verifyAndAddMaster('M_仕入先', data.vendor, 2).added) masterAdded = true;
-    if (data.payment) if (verifyAndAddMaster('M_支払', data.payment).added) masterAdded = true;
-    if (data.account) if (verifyAndAddMaster('M_仕訳', data.account).added) masterAdded = true;
+    if (data.vendor) if (verifyAndAddMaster_('M_仕入先', data.vendor, 2).added) masterAdded = true;
+    if (data.payment) if (verifyAndAddMaster_('M_支払', data.payment).added) masterAdded = true;
+    if (data.account) if (verifyAndAddMaster_('M_仕訳', data.account).added) masterAdded = true;
     if (data.item) {
         if (data.isStock == 1) {
-            if (verifyAndAddMaster('M_商品', data.item, '経費').added) masterAdded = true;
+            if (verifyAndAddMaster_('M_商品', data.item, '経費').added) masterAdded = true;
         } else {
-            if (verifyAndAddMaster('M_経費品名', data.item).added) masterAdded = true;
+            if (verifyAndAddMaster_('M_経費品名', data.item).added) masterAdded = true;
         }
     }
   }
 
   // 4. 販売時の追加計算（手数料等）
   if (sheetName === 'T_販売') {
-    const sellers = getSheetDataAsObjects('M_売先');
+    const sellers = getSheetDataAsObjects_('M_売先');
     const buyerRow = sellers.find(r => r['売先'] === data.buyer);
     const rate = buyerRow ? (parseFloat(buyerRow['手数料率']) || 0) : 0;
     data.commission = Math.round(data.price * rate);
@@ -268,18 +253,18 @@ function registerTransaction(sheetName, data, scope = 'all') {
   // 5. 在庫バリデーション
   if (sheetName === 'T_販売' && (data.status === '取引開始' || data.status === '受注' || data.status === '開始' || data.status === '入金待ち')) {
       const isPersonal = data.type === 'personal';
-      const prodMaster = getSheetDataAsObjects('M_商品');
+      const prodMaster = getSheetDataAsObjects_('M_商品');
       const prodExists = prodMaster.some(r => r['品名'] === data.item);
       
       if (!(isPersonal && !prodExists)) {
-          const availability = checkStockAvailability(data.item, data.quantity);
+          const availability = checkStockAvailability_(data.item, data.quantity);
           if (!availability.ok) {
               throw new Error(`在庫不足: ${data.item} が ${availability.shortage} 不足しています。`);
           }
       }
   }
   if (sheetName === 'T_製造' && (data.status === '製造開始' || data.status === '開始')) {
-      const availability = checkBOMAvailability(data.item, data.quantity);
+      const availability = checkBOMAvailability_(data.item, data.quantity);
       if (!availability.ok) {
           throw new Error(`部品不足: ${availability.message}`);
       }
@@ -330,7 +315,7 @@ function registerTransaction(sheetName, data, scope = 'all') {
     
     if (h === '単価' && data.price !== undefined && data.quantity) {
       const qty = parseFloat(data.quantity) || 0;
-      return qty > 0 ? roundTo2dp(data.price / qty) : 0;
+      return qty > 0 ? roundTo2dp_(data.price / qty) : 0;
     }
     if (h === '最終更新日') return data.updatedAt || new Date();
     
@@ -342,22 +327,22 @@ function registerTransaction(sheetName, data, scope = 'all') {
   DataCache.clear(sheetName); 
   
   const newRowIdx = sheet.getLastRow();
-  if (sheetName === 'T_仕入' || sheetName === 'T_経費') formatColumn(sheet, newRowIdx, '単価', '0.00');
+  if (sheetName === 'T_仕入' || sheetName === 'T_経費') formatColumn_(sheet, newRowIdx, '単価', '0.00');
 
-  handleStatusLogic(sheetName, idValue, data.status, getRowAsObject(sheet, newRowIdx));
+  handleStatusLogic_(sheetName, idValue, data.status, getRowAsObject_(sheet, newRowIdx));
 
   return { 
     status: 'success', 
     id: idValue, 
     masterAdded: masterAdded, 
-    historyData: fetchHistoryData(scope) 
+    historyData: fetchHistoryData_(scope)
   };
 }
 
 /**
  * 複数取引の一括登録処理 (Proposal 38)
  */
-function registerBulkTransactions(transactions, scope = 'all') {
+function registerBulkTransactions_(transactions, scope = 'all') {
   if (!transactions || !Array.isArray(transactions) || transactions.length === 0) {
     throw new Error("登録対象のデータがありません");
   }
@@ -370,7 +355,7 @@ function registerBulkTransactions(transactions, scope = 'all') {
     // tx: { type: 'purchase'|'expense', data: {...} }
     const sheetName = tx.type === 'purchase' ? 'T_仕入' : 'T_経費';
     try {
-      const res = registerTransaction(sheetName, tx.data, 'none'); // ここでは履歴取得をスキップ
+      const res = registerTransaction_(sheetName, tx.data, 'none'); // ここでは履歴取得をスキップ
       results.push({ id: res.id, status: 'success' });
       if (res.masterAdded) totalMasterAdded = true;
     } catch (e) {
@@ -383,7 +368,7 @@ function registerBulkTransactions(transactions, scope = 'all') {
     status: 'success',
     results: results,
     masterAdded: totalMasterAdded,
-    historyData: fetchHistoryData(scope) // 最後に一括で最新履歴を返す
+    historyData: fetchHistoryData_(scope)// 最後に一括で最新履歴を返す
   };
 }
 
@@ -394,7 +379,7 @@ function registerBulkTransactions(transactions, scope = 'all') {
  * 取引履歴の更新（ステータス変更など）
  * @param {string} scope 最新履歴を取得するスコープ（新規追加）
  */
-function updateTransaction(id, updates, scope = 'all') {
+function updateTransaction_(id, updates, scope = 'all') {
   const prefix = id.substring(0, 1);
   const sheetMap = { 'P': 'T_仕入', 'E': 'T_経費', 'M': 'T_製造', 'S': 'T_販売' };
   const sheetName = sheetMap[prefix];
@@ -457,7 +442,7 @@ function updateTransaction(id, updates, scope = 'all') {
 
   // 仕入 (T_仕入) または 経費 (T_経費) の場合、価格と数量から「単価」を自動計算する
   if (sheetName === 'T_仕入' || sheetName === 'T_経費') {
-    const updatedRow = getRowAsObject(sheet, rowIndex + 1);
+    const updatedRow = getRowAsObject_(sheet, rowIndex + 1);
     const qtyField = '数量';
     const priceField = sheetName === 'T_仕入' ? '価格' : '合計金額';
     const unitPriceColIndex = headers.indexOf('単価');
@@ -465,11 +450,11 @@ function updateTransaction(id, updates, scope = 'all') {
     if (unitPriceColIndex !== -1) {
       const price = parseFloat(updatedRow[priceField]) || 0;
       const qty = parseFloat(updatedRow[qtyField]) || 0;
-      const calculatedUnitPrice = qty > 0 ? roundTo2dp(price / qty) : 0;
+      const calculatedUnitPrice = qty > 0 ? roundTo2dp_(price / qty) : 0;
       
       sheet.getRange(rowIndex + 1, unitPriceColIndex + 1).setValue(calculatedUnitPrice);
       // 単価更新後にフォーマットを適用
-      formatColumn(sheet, rowIndex + 1, '単価', '0.00');
+      formatColumn_(sheet, rowIndex + 1, '単価', '0.00');
     }
   }
 
@@ -477,11 +462,11 @@ function updateTransaction(id, updates, scope = 'all') {
     // 単価更新後なので再度キャッシュをクリアして最新行を取得
     SpreadsheetApp.flush();
     DataCache.clear(sheetName);
-    const updatedRow = getRowAsObject(sheet, rowIndex + 1);
-    handleStatusLogic(sheetName, id, newStatus, updatedRow, oldStatus);
+    const updatedRow = getRowAsObject_(sheet, rowIndex + 1);
+    handleStatusLogic_(sheetName, id, newStatus, updatedRow, oldStatus);
   }
   
-  if (sheetName === 'T_経費') formatColumn(sheet, rowIndex + 1, '単価', '0.00');
+  if (sheetName === 'T_経費') formatColumn_(sheet, rowIndex + 1, '単価', '0.00');
 
   // 最終更新日の更新 (処理ルールに従い、最右部の列を更新)
   const updatedColIndex = headers.indexOf('最終更新日');
@@ -493,7 +478,7 @@ function updateTransaction(id, updates, scope = 'all') {
 
   // 製造や販売の更新なら在庫も再計算
   if (id.startsWith('M') || id.startsWith('S')) {
-    updateInventorySummary();
+    updateInventorySummary_();
   }
 
   SpreadsheetApp.flush();
@@ -501,14 +486,14 @@ function updateTransaction(id, updates, scope = 'all') {
   return { 
     status: 'success', 
     masterAdded: false,
-    historyData: fetchHistoryData(scope)
+    historyData: fetchHistoryData_(scope)
   };
 }
 
 /**
  * 製造レコードへの追加部材引き当て処理
  */
-function addMaterialToManufacturing(manufacturingId, partName, quantity, reason) {
+function addMaterialToManufacturing_(manufacturingId, partName, quantity, reason) {
   const sheetName = 'T_製造';
   const sheet = SS.getSheetByName(sheetName);
   const data = DataCache.getValues(sheetName);
@@ -529,7 +514,7 @@ function addMaterialToManufacturing(manufacturingId, partName, quantity, reason)
 
   // 1. 在庫引き当て (FIFO)
   StockManager.init();
-  const extraCost = processFIFO(manufacturingId, '製造引当(追加)', partName, quantity);
+  const extraCost = processFIFO_(manufacturingId, '製造引当(追加)', partName, quantity);
   
   // 在庫管理の備考に理由を記録
   const stockData = StockManager.data;
@@ -544,7 +529,7 @@ function addMaterialToManufacturing(manufacturingId, partName, quantity, reason)
 
   // 2. 新単価の計算
   const newTotalCost = currentTotalCost + extraCost;
-  const newUnitPrice = makeQty > 0 ? roundTo2dp(newTotalCost / makeQty) : currentUnitPrice;
+  const newUnitPrice = makeQty > 0 ? roundTo2dp_(newTotalCost / makeQty) : currentUnitPrice;
 
   // 3. シートへの書き込み
   if (unitPriceCol !== -1) {
@@ -565,13 +550,13 @@ function addMaterialToManufacturing(manufacturingId, partName, quantity, reason)
   }
 
   StockManager.flush();
-  updateInventorySummary();
+  updateInventorySummary_();
   DataCache.clear(sheetName);
 
   return { 
     status: 'success',
     message: '部材の追加と単価の再計算が完了しました。',
-    historyData: fetchHistoryData('manufacturing')
+    historyData: fetchHistoryData_('manufacturing')
   };
 }
 
@@ -674,7 +659,7 @@ const StockManager = {
 /**
  * ビジネスロジックの発火点
  */
-function handleStatusLogic(sheetName, id, status, currentData, oldStatus = null) {
+function handleStatusLogic_(sheetName, id, status, currentData, oldStatus = null) {
   StockManager.init(); // 在庫管理シートを一括メモリ読み込み
 
   if (sheetName === 'T_仕入') {
@@ -682,7 +667,7 @@ function handleStatusLogic(sheetName, id, status, currentData, oldStatus = null)
     const isNowTrigger = triggerStatuses.includes(String(status || "").trim());
     const wasTrigger = oldStatus ? triggerStatuses.includes(String(oldStatus).trim()) : false;
     if (isNowTrigger && !wasTrigger) {
-      recordInventory(id, '仕入入庫', currentData['品名'], currentData['数量'], currentData['単価'] || (currentData['価格']/currentData['数量']) || 0, currentData['仕入先']);
+      recordInventory_(id, '仕入入庫', currentData['品名'], currentData['数量'], currentData['単価'] || (currentData['価格']/currentData['数量']) || 0, currentData['仕入先']);
     }
   }
   
@@ -692,10 +677,10 @@ function handleStatusLogic(sheetName, id, status, currentData, oldStatus = null)
     if (s === '製造開始' && os !== '製造開始') {
       const makeQty = parseFloat(currentData['数量']) || 0;
       const itemName = currentData['品名'];
-      const totalMaterialCost = processManufacturingBOM(id, itemName, makeQty);
+      const totalMaterialCost = processManufacturingBOM_(id, itemName, makeQty);
       
       if (makeQty > 0) {
-        const unitCost = roundTo2dp(totalMaterialCost / makeQty);
+        const unitCost = roundTo2dp_(totalMaterialCost / makeQty);
         const sheet = SS.getSheetByName('T_製造');
         const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => h.toString().trim());
         const colIdx = headers.indexOf('単価');
@@ -703,14 +688,14 @@ function handleStatusLogic(sheetName, id, status, currentData, oldStatus = null)
         const rowIdx = data.findIndex(r => r[0] === id);
         if (rowIdx !== -1 && colIdx !== -1) {
           sheet.getRange(rowIdx + 1, colIdx + 1).setValue(unitCost);
-          formatColumn(sheet, rowIdx + 1, '単価', '0.00');
+          formatColumn_(sheet, rowIdx + 1, '単価', '0.00');
         }
       }
     }
     
     if (s === '完了' && os !== '完了') {
       const unitCost = parseFloat(currentData['単価']) || 0;
-      recordInventory(id, '製造入庫', currentData['品名'], currentData['数量'], unitCost, '自社');
+      recordInventory_(id, '製造入庫', currentData['品名'], currentData['数量'], unitCost, '自社');
     }
   }
 
@@ -737,8 +722,8 @@ function handleStatusLogic(sheetName, id, status, currentData, oldStatus = null)
         unitCost = 0; 
       } else {
         try {
-          const totalCost = processFIFO(id, '販売出庫', productName, qty);
-          unitCost = roundTo2dp(totalCost);
+          const totalCost = processFIFO_(id, '販売出庫', productName, qty);
+          unitCost = roundTo2dp_(totalCost);
         } catch (e) {
           if (isPersonal) {
             unitCost = 0; 
@@ -753,7 +738,7 @@ function handleStatusLogic(sheetName, id, status, currentData, oldStatus = null)
         const shippingExists = nameIdx !== -1 ? productMaster.slice(1).some(r => r[nameIdx] === shippingMethod) : false;
         if (shippingExists) {
           try {
-            processFIFO(id, '販売出庫(梱包)', shippingMethod, 1);
+            processFIFO_(id, '販売出庫(梱包)', shippingMethod, 1);
           } catch (e) {
             throw new Error('梱包材の引当エラー: ' + e.message);
           }
@@ -768,7 +753,7 @@ function handleStatusLogic(sheetName, id, status, currentData, oldStatus = null)
         const colIdx = sHeaders.indexOf('合計単価');
         if (colIdx !== -1) {
             saleSheet.getRange(rowIdx + 1, colIdx + 1).setValue(unitCost);
-            formatColumn(saleSheet, rowIdx + 1, '合計単価', '0.00');
+            formatColumn_(saleSheet, rowIdx + 1, '合計単価', '0.00');
             currentData['合計単価'] = unitCost;
         }
       }
@@ -783,28 +768,28 @@ function handleStatusLogic(sheetName, id, status, currentData, oldStatus = null)
          const qty = parseFloat(currentData['数量']) || 1;
          const price = parseFloat(currentData['合計金額']) || 0;
          // 処理ルールに基づき、商品区分に「経費」を強制指定
-         recordInventory(id, '経費入庫', currentData['品名'], qty, price / qty, currentData['購入先'], '経費');
+         recordInventory_(id, '経費入庫', currentData['品名'], qty, price / qty, currentData['購入先'], '経費');
       }
     }
   }
   
   if (status === 'キャンセル') {
-    revertFIFO(id);
+    revertFIFO_(id);
   }
 
   if (status === '完了') {
-    syncToLedger(sheetName, id, currentData);
+    syncToLedger_(sheetName, id, currentData);
   }
 
   StockManager.flush(); // ここで1回だけT_在庫管理に上書き・追記
-  updateInventorySummary();
+  updateInventorySummary_();
   SpreadsheetApp.flush(); // 全ての書き込みを最後に確定
   
   // ビジネスロジックによるシートへの単価書き込み等をキャッシュに同期するため確実にクリア
   DataCache.clear(sheetName);
 }
 
-function appendInventoryRow(stockSheet, rowDataObj) {
+function appendInventoryRow_(stockSheet, rowDataObj) {
   // 古いAPI（StockManagerを使用しないレガシー用、今回は呼ばれない想定）
   const headers = stockSheet.getDataRange().getValues()[0].map(h => h ? h.toString().trim() : "");
   const row = headers.map(h => {
@@ -814,15 +799,15 @@ function appendInventoryRow(stockSheet, rowDataObj) {
   });
   stockSheet.appendRow(row);
   const rowIdx = stockSheet.getLastRow();
-  formatColumn(stockSheet, rowIdx, '入出庫日', 'yyyy/MM/dd');
-  formatColumn(stockSheet, rowIdx, '単価', '0.00');
+  formatColumn_(stockSheet, rowIdx, '入出庫日', 'yyyy/MM/dd');
+  formatColumn_(stockSheet, rowIdx, '単価', '0.00');
 }
 
 
 /**
  * FIFO在庫引当エンジン（メモリ上で処理する最適化版）
  */
-function processFIFO(triggerId, type, itemName, demandQty) {
+function processFIFO_(triggerId, type, itemName, demandQty) {
   const data = StockManager.data;
   const headers = StockManager.headers;
 
@@ -911,7 +896,7 @@ function processFIFO(triggerId, type, itemName, demandQty) {
 /**
  * 在庫処理の取り消し (FIFOの逆操作)
  */
-function revertFIFO(triggerId) {
+function revertFIFO_(triggerId) {
   const data = StockManager.data;
   const headers = StockManager.headers;
   const invIdCol = headers.indexOf('在庫管理ID');
@@ -1004,22 +989,22 @@ function revertFIFO(triggerId) {
   });
 }
 
-function processManufacturingBOM(makeId, productName, makeQty) {
+function processManufacturingBOM_(makeId, productName, makeQty) {
   const bomSheet = SS.getSheetByName('M_BOM');
-  const bomData = getSheetDataAsObjects(bomSheet);
+  const bomData = getSheetDataAsObjects_(bomSheet);
   const components = bomData.filter(r => r['品名'] === productName);
 
   let totalCost = 0;
   components.forEach(comp => {
     const needed = (parseFloat(comp['数量']) || 0) * makeQty;
     if (needed > 0) {
-      totalCost += processFIFO(makeId, '製造引当', comp['部品'], needed);
+      totalCost += processFIFO_(makeId, '製造引当', comp['部品'], needed);
     }
   });
   return totalCost;
 }
 
-function recordInventory(refId, type, itemName, qty, unitPrice, vendorName = "", forceCategory = null) {
+function recordInventory_(refId, type, itemName, qty, unitPrice, vendorName = "", forceCategory = null) {
   const newId = StockManager.getNextInvId();
   
   const pSheet = SS.getSheetByName('M_商品');
@@ -1038,7 +1023,7 @@ function recordInventory(refId, type, itemName, qty, unitPrice, vendorName = "",
     '商品区分': category,
     '区分': type,
     '数量': qty,
-    '単価': roundTo2dp(unitPrice),
+    '単価': roundTo2dp_(unitPrice),
     '仕入先': vendorName,
     '引当完了': 0,
     '実在庫数量': qty,
@@ -1055,7 +1040,7 @@ function recordInventory(refId, type, itemName, qty, unitPrice, vendorName = "",
 /**
  * 帳簿連携 (T_帳簿)
  */
-function syncToLedger(sheetName, id, data) {
+function syncToLedger_(sheetName, id, data) {
   // 帳簿記録の対象外シートのガード
   if (sheetName === 'T_製造' || sheetName === 'T_仕入') return; 
 
@@ -1134,7 +1119,7 @@ function syncToLedger(sheetName, id, data) {
 
   ledgerSheet.appendRow(row);
   const lastRow = ledgerSheet.getLastRow();
-  formatColumn(ledgerSheet, lastRow, '日付', 'yyyy/MM/dd');
+  formatColumn_(ledgerSheet, lastRow, '日付', 'yyyy/MM/dd');
 
   // 日付順（昇順）にソートして整理
   if (lastRow > 1) {
@@ -1145,7 +1130,7 @@ function syncToLedger(sheetName, id, data) {
 /**
  * 在庫集計の再計算（メモリデータ活用版）
  */
-function updateInventorySummary() {
+function updateInventorySummary_() {
   if (!StockManager.changedItems || StockManager.changedItems.size === 0) {
     return;
   }
@@ -1176,7 +1161,7 @@ function updateInventorySummary() {
   }
   
   const existingNames = new Set();
-  const pData = getSheetDataAsObjects('M_商品');
+  const pData = getSheetDataAsObjects_('M_商品');
 
   const sNameCol = sumHeaders.indexOf('品名');
   const sQtyCol = sumHeaders.indexOf('現在庫数');
@@ -1244,7 +1229,7 @@ function updateInventorySummary() {
 /**
  * 在庫の全再集計（全品目を対象に再計算）
  */
-function rebuildInventorySummary() {
+function rebuildInventorySummary_() {
   StockManager.init();
   const data = StockManager.data;
   const headers = StockManager.headers;
@@ -1258,14 +1243,14 @@ function rebuildInventorySummary() {
     if (name) StockManager.changedItems.add(name);
   }
   
-  updateInventorySummary();
+  updateInventorySummary_();
   return { status: 'success', message: '在庫の全再集計が完了しました。' };
 }
 
 /**
  * ID生成ヘルパー
  */
-function generateNextId(sheet, prefix) {
+function generateNextId_(sheet, prefix) {
   if (prefix === 'INV') {
     const today = new Date();
     const yyyymmdd = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
@@ -1308,7 +1293,7 @@ function generateNextId(sheet, prefix) {
 /**
  * 履歴データの取得（フィルタリング対応版）
  */
-function fetchHistoryData(scope = 'all') {
+function fetchHistoryData_(scope = 'all') {
   console.time('fetchHistoryData');
   
   // 取得対象テーブルの決定
@@ -1398,7 +1383,7 @@ function fetchHistoryData(scope = 'all') {
   return { isRaw: true, rawData: rawData, scope: scope };
 }
 
-function getRowAsObject(sheet, rowIdx) {
+function getRowAsObject_(sheet, rowIdx) {
   const sheetName = typeof sheet === 'string' ? sheet : sheet.getName();
   const data = DataCache.getValues(sheetName);
   if (!data || data.length < rowIdx) {
@@ -1415,7 +1400,7 @@ function getRowAsObject(sheet, rowIdx) {
   return obj;
 }
 
-function formatColumn(sheet, rowIdx, headerName, formatString, cachedHeaders = null) {
+function formatColumn_(sheet, rowIdx, headerName, formatString, cachedHeaders = null) {
   const headers = cachedHeaders || sheet.getDataRange().getValues()[0];
   const colIdx = headers.indexOf(headerName);
   if (colIdx !== -1) {
@@ -1423,7 +1408,7 @@ function formatColumn(sheet, rowIdx, headerName, formatString, cachedHeaders = n
   }
 }
 
-function roundTo2dp(val) {
+function roundTo2dp_(val) {
   if (val === null || val === undefined || isNaN(val)) return 0;
   return Math.round(val * 100) / 100;
 }
@@ -1431,7 +1416,7 @@ function roundTo2dp(val) {
 /**
  * 過去履歴の検索 (全データから検索)
  */
-function searchHistory(target = 'all', keyword = '', dateFrom = '', dateTo = '') {
+function searchHistory_(target = 'all', keyword = '', dateFrom = '', dateTo = '') {
   console.time('searchHistory');
   
   let tables = [];
@@ -1510,7 +1495,7 @@ function searchHistory(target = 'all', keyword = '', dateFrom = '', dateTo = '')
   return { isRaw: true, rawData: resultData, scope: 'search' };
 }
 
-function fetchMasterData(includeInactive = false) {
+function fetchMasterData_(includeInactive = false) {
   console.time('fetchMasterData');
   const targetSheets = [
     'M_User', 'M_商品', 'M_仕入先', 'M_支払', 'M_売先', 'M_発送', 
@@ -1524,7 +1509,7 @@ function fetchMasterData(includeInactive = false) {
   return masters;
 }
 
-function getSheetDataAsObjects(sheet) {
+function getSheetDataAsObjects_(sheet) {
   const sheetName = typeof sheet === 'string' ? sheet : sheet.getName();
   const data = DataCache.getValues(sheetName); 
   if (!data || data.length < 2) return [];
@@ -1536,7 +1521,7 @@ function getSheetDataAsObjects(sheet) {
   });
 }
 
-function applyMasterRules(records, includeInactive = false) {
+function applyMasterRules_(records, includeInactive = false) {
   let filtered = records;
   if (!includeInactive && records.length > 0 && records[0].hasOwnProperty('使用FLG')) {
     filtered = records.filter(r => r['使用FLG'] == 1 || r['使用FLG'] === true);
@@ -1547,7 +1532,7 @@ function applyMasterRules(records, includeInactive = false) {
   return filtered;
 }
 
-function verifyAndAddMaster(sheetName, valueToAdd, extraUsage = null) {
+function verifyAndAddMaster_(sheetName, valueToAdd, extraUsage = null) {
   const data = DataCache.getValues(sheetName); // キャッシュ利用
   if (!data || data.length === 0) return { added: false };
   const headers = data[0].map(h => h.toString().trim());
@@ -1592,7 +1577,7 @@ function verifyAndAddMaster(sheetName, valueToAdd, extraUsage = null) {
   
   // 商品IDの採番 (M_商品かつ1列目がIDの場合)
   if (sheetName === 'M_商品' && (headers[0] === '商品ID' || headers[0] === 'ID')) {
-    newRow[0] = generateNextId(sheet, 'I');
+    newRow[0] = generateNextId_(sheet, 'I');
   }
   
   // 表示順の設定
@@ -1625,7 +1610,7 @@ function verifyAndAddMaster(sheetName, valueToAdd, extraUsage = null) {
 
 
 
-function updateStockThreshold(itemName, newThreshold) {
+function updateStockThreshold_(itemName, newThreshold) {
   const sheet = SS.getSheetByName('T_在庫集計');
   const data = sheet.getDataRange().getValues();
   const headers = data[0].map(h => h.toString().trim());
@@ -1647,7 +1632,7 @@ function updateStockThreshold(itemName, newThreshold) {
   return { status: 'error', message: 'Item not found in summary' };
 }
 
-function updateStockItemStatus(itemName, newStatus) {
+function updateStockItemStatus_(itemName, newStatus) {
   const sheet = SS.getSheetByName('T_在庫集計');
   const data = sheet.getDataRange().getValues();
   const headers = data[0].map(h => h.toString().trim());
@@ -1669,7 +1654,7 @@ function updateStockItemStatus(itemName, newStatus) {
   return { status: 'error', message: 'Item not found in summary' };
 }
 
-function updateStockBulk(thresholdUpdates, statusUpdates) {
+function updateStockBulk_(thresholdUpdates, statusUpdates) {
   try {
     const sheet = SS.getSheetByName('T_在庫集計');
     const data = sheet.getDataRange().getValues();
@@ -1733,12 +1718,12 @@ function updateStockBulk(thresholdUpdates, statusUpdates) {
 /**
  * 帳簿データのエクスポート (新しいスプレッドシートとして保存)
  */
-function exportLedgerReport(period, includePersonal = false) {
+function exportLedgerReport_(period, includePersonal = false) {
   try {
     const ledgerSheet = SS.getSheetByName('T_帳簿');
     if (!ledgerSheet) throw new Error("帳簿シートが見つかりません。");
 
-    const data = getSheetDataAsObjects(ledgerSheet);
+    const data = getSheetDataAsObjects_(ledgerSheet);
     const [selY, selM] = period.split('-');
 
     const filtered = data.filter(row => {
@@ -1793,14 +1778,14 @@ function exportLedgerReport(period, includePersonal = false) {
     newSheet.getRange(2, 1, 1, 11).setValues([headers]).setFontWeight('bold').setBackground('#f3f3f3');
 
     const rows = filtered.map(r => {
-      const s = parseNumber(r['売上']);
-      const p = parseNumber(r['仕入']);
-      const c = parseNumber(r['通信費']);
-      const rs = parseNumber(r['修繕費']);
-      const sp = parseNumber(r['消耗品費']);
-      const d = parseNumber(r['諸会費']);
-      const f = parseNumber(r['支払手数料']);
-      const ms = parseNumber(r['雑費']);
+      const s = parseNumber_(r['売上']);
+      const p = parseNumber_(r['仕入']);
+      const c = parseNumber_(r['通信費']);
+      const rs = parseNumber_(r['修繕費']);
+      const sp = parseNumber_(r['消耗品費']);
+      const d = parseNumber_(r['諸会費']);
+      const f = parseNumber_(r['支払手数料']);
+      const ms = parseNumber_(r['雑費']);
       const profit = s - (p + c + rs + sp + d + f + ms);
 
       return [
@@ -1837,7 +1822,7 @@ function exportLedgerReport(period, includePersonal = false) {
 /**
  * 過去の個人販売データをT_帳簿へ一括移行する管理用関数 (1回限り実行用)
  */
-function migratePersonalSalesToLedger() {
+function migratePersonalSalesToLedger_() {
   const salesSheet = SS.getSheetByName('T_販売');
   const ledgerSheet = SS.getSheetByName('T_帳簿');
   if (!salesSheet || !ledgerSheet) throw new Error("対象シートが見つかりません。");
@@ -1867,7 +1852,7 @@ function migratePersonalSalesToLedger() {
     const row = ledgerData[r];
     const rowDate = row[dateCol];
     const rowDesc = String(row[descCol] || "").trim();
-    const rowIncome = parseNumber(row[incomeCol]);
+    const rowIncome = parseNumber_(row[incomeCol]);
     const rowType = String(row[typeCol] || "").trim();
     
     const isManualPersonal = rowDesc.includes('個人取引:');
@@ -1893,7 +1878,7 @@ function migratePersonalSalesToLedger() {
   }
 
   // T_販売データの読み込み
-  const salesObjects = getSheetDataAsObjects(salesSheet);
+  const salesObjects = getSheetDataAsObjects_(salesSheet);
   const rowsToAdd = [];
   let skippedAdjustCount = 0;
   let skippedDuplicateCount = 0;
@@ -2003,7 +1988,7 @@ function migratePersonalSalesToLedger() {
 /**
  * 汎用数値変換 (GAS backend用)
  */
-function parseNumber(val) {
+function parseNumber_(val) {
   if (val === undefined || val === null || val === "") return 0;
   if (typeof val === 'number') return val;
   const cleaned = String(val).replace(/[^0-9.-]+/g, "")
@@ -2015,9 +2000,9 @@ function parseNumber(val) {
 /**
  * 商品画像のアップロードとM_商品への反映
  */
-function uploadProductImage(itemName, base64Data) {
+function uploadProductImage_(itemName, base64Data) {
   try {
-    const folder = getOrCreateImageFolder();
+    const folder = getOrCreateImageFolder_();
     const contentType = base64Data.substring(5, base64Data.indexOf(';'));
     const bytes = Utilities.base64Decode(base64Data.split(',')[1]);
     const blob = Utilities.newBlob(bytes, contentType, itemName + ".jpg");
@@ -2069,7 +2054,7 @@ function uploadProductImage(itemName, base64Data) {
 /**
  * 画像保存用のフォルダを取得または作成
  */
-function getOrCreateImageFolder() {
+function getOrCreateImageFolder_() {
   const folderName = "統合システム_商品画像";
   const folders = DriveApp.getFoldersByName(folderName);
   if (folders.hasNext()) {
@@ -2083,7 +2068,7 @@ function getOrCreateImageFolder() {
 /**
  * 権限承認専用の関数
  */
-function authorizeDrive() {
+function authorizeDrive_() {
   const dummy = DriveApp.createFolder("承認用一時フォルダ");
   dummy.setTrashed(true);
   console.log("ドライブの作成・書き込み権限が承認されました。");
@@ -2092,7 +2077,7 @@ function authorizeDrive() {
 /**
  * 単品アイテムの在庫充足チェック
  */
-function checkStockAvailability(itemName, demandQty) {
+function checkStockAvailability_(itemName, demandQty) {
   const sheet = SS.getSheetByName('T_在庫集計');
   if (!sheet) return { ok: true }; 
 
@@ -2115,11 +2100,11 @@ function checkStockAvailability(itemName, demandQty) {
 /**
  * 製造（BOM）に基づく部品全体の在庫充足チェック
  */
-function checkBOMAvailability(productName, makeQty) {
+function checkBOMAvailability_(productName, makeQty) {
   const bomSheet = SS.getSheetByName('M_BOM');
   if (!bomSheet) return { ok: true };
 
-  const bomData = getSheetDataAsObjects(bomSheet);
+  const bomData = getSheetDataAsObjects_(bomSheet);
   const components = bomData.filter(r => r['品名'] === productName);
   
   if (components.length === 0) return { ok: true };
@@ -2127,7 +2112,7 @@ function checkBOMAvailability(productName, makeQty) {
   for (const comp of components) {
     const compName = comp['部品'];
     const needed = (parseFloat(comp['数量']) || 0) * makeQty;
-    const res = checkStockAvailability(compName, needed);
+    const res = checkStockAvailability_(compName, needed);
     if (!res.ok) {
       return { ok: false, message: `${compName} があと ${res.shortage} 不足しています` };
     }
@@ -2140,7 +2125,7 @@ function checkBOMAvailability(productName, makeQty) {
  * @param {Array} stocktakeData {itemName, actualQty, logicalQty, diff} の配列
  * @param {string} note 備考
  */
-function registerStocktake(stocktakeData, note) {
+function registerStocktake_(stocktakeData, note) {
   StockManager.init(); // 在庫管理データをメモリにロード
   const stockSheet = SS.getSheetByName('T_在庫管理');
   const histSheet = SS.getSheetByName('T_棚卸履歴');
@@ -2148,7 +2133,7 @@ function registerStocktake(stocktakeData, note) {
 
   const timestamp = new Date();
   const dateOnly = Utilities.formatDate(timestamp, "JST", "yyyy/MM/dd");
-  const adjId = generateNextId(histSheet, 'A');
+  const adjId = generateNextId_(histSheet, 'A');
   
   // 1. 棚卸履歴の保存
   const totalItems = stocktakeData.length;
@@ -2181,16 +2166,16 @@ function registerStocktake(stocktakeData, note) {
 
     if (adj.diffQty > 0) {
       // プラス調整：新規ロットとして追加
-      processSurplusAdjustment(adj, adjId, timestamp, dateOnly);
+      processSurplusAdjustment_(adj, adjId, timestamp, dateOnly);
     } else {
       // マイナス調整：既存在庫からFIFOで消し込み
-      processShortageAdjustment(adj, adjId, timestamp, dateOnly);
+      processShortageAdjustment_(adj, adjId, timestamp, dateOnly);
     }
   });
 
   // 3. 在庫集計の更新（在庫数のみ）
   StockManager.flush(); // メモリ上の変更をシートに反映
-  updateInventorySummary();
+  updateInventorySummary_();
   SpreadsheetApp.flush();
 
   return { status: 'success', adjId: adjId };
@@ -2199,7 +2184,7 @@ function registerStocktake(stocktakeData, note) {
 /**
  * プラス調整：最新単価を引き継いで新規入庫
  */
-function processSurplusAdjustment(adj, adjId, timestamp, dateOnly) {
+function processSurplusAdjustment_(adj, adjId, timestamp, dateOnly) {
   const headers = StockManager.headers;
   const data = StockManager.data;
   
@@ -2252,7 +2237,7 @@ function processSurplusAdjustment(adj, adjId, timestamp, dateOnly) {
 /**
  * マイナス調整：既存在庫からFIFOで消し込み
  */
-function processShortageAdjustment(adj, adjId, timestamp, dateOnly) {
+function processShortageAdjustment_(adj, adjId, timestamp, dateOnly) {
   const headers = StockManager.headers;
   const data = StockManager.data;
   
@@ -2331,7 +2316,7 @@ function processShortageAdjustment(adj, adjId, timestamp, dateOnly) {
  * マスタデータの汎用更新
  * 第一列をIDとして検索し、該当行のデータを更新する
  */
-function updateMasterRecord(masterName, id, updates) {
+function updateMasterRecord_(masterName, id, updates) {
   try {
     const sheet = SS.getSheetByName(masterName);
     if (!sheet) throw new Error("Master sheet not found: " + masterName);
@@ -2383,7 +2368,7 @@ function updateMasterRecord(masterName, id, updates) {
       if (masterName === 'M_商品') {
         const itemName = data[rowIndex][headers.indexOf('品名')];
         if (itemName) {
-          updateStockItemStatus(itemName, newStatus);
+          updateStockItemStatus_(itemName, newStatus);
         }
       } else if (masterName === 'T_在庫集計') {
         const nameCol = headers.indexOf('品名');
@@ -2414,7 +2399,7 @@ function updateMasterRecord(masterName, id, updates) {
 /**
  * マスタデータの新規追加
  */
-function addMasterRecord(masterName, updates) {
+function addMasterRecord_(masterName, updates) {
   try {
     const sheet = SS.getSheetByName(masterName);
     if (!sheet) throw new Error("Master sheet not found: " + masterName);
@@ -2433,7 +2418,7 @@ function addMasterRecord(masterName, updates) {
 
     // M_商品追加時はT_在庫集計にも初期行を作成
     if (masterName === 'M_商品') {
-       updateInventorySummary(updates['品名']);
+       updateInventorySummary_(updates['品名']);
     }
 
     SpreadsheetApp.flush();

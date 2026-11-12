@@ -18,8 +18,8 @@ Set-Content -Path src/style_css.html -Value $styleHtml -Encoding UTF8
 
 # 3. index.html (GAS用のinclude構文に置換)
 $indexContent = Get-Content index.html -Raw -Encoding UTF8
-$indexContent = $indexContent -replace '<link rel="stylesheet" href="style.css">', "<?!= include('style_css'); ?>"
-$indexContent = $indexContent -replace '<script src="app.js"></script>', "<?!= include('app_js'); ?>"
+$indexContent = $indexContent -replace '<link rel="stylesheet" href="style.css">', "<?!= include_('style_css'); ?>"
+$indexContent = $indexContent -replace '<script src="app.js"></script>', "<?!= include_('app_js'); ?>"
 Set-Content -Path src/index.html -Value $indexContent -Encoding UTF8
 
 # 4. backend.gs (ルートのファイルをsrcにコピー)

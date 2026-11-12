@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ---- API Configuration ----
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzY_IuQn_5tG_bGBP459xIPoekQoeEdxEo5nfIO3yeC8chmyHicQNzjgseGXtlol2q0SA/exec';
     let currentAuthKey = localStorage.getItem('inventory_auth_key') || '';
-    let useMock = false;
 
     // Global state
     let currentMasters = {};
@@ -784,16 +783,6 @@ document.addEventListener('DOMContentLoaded', async () => {
      * API通信の共通処理 (GAS本番環境とローカル環境を自動判別)
      */
     async function fetchAPI(action, payload = {}) {
-        if (useMock) {
-            if (window.MockAPI) {
-                if (action === 'getMasters') return window.MockAPI.getMasterData();
-                if (action === 'registerTransaction') return window.MockAPI.registerTransaction(payload.sheet, payload.data);
-                if (action === 'updateTransaction') return window.MockAPI.updateTransaction(payload.id, payload.updates);
-                if (action === 'verifyAndAddMaster') return window.MockAPI.verifyAndAddMaster(payload.sheet, payload.value);
-            }
-            return { status: 'error', message: 'Mock API not found' };
-        }
-
         const bodyData = Object.assign({ action: action, key: currentAuthKey }, payload);
 
         if (!currentAuthKey && action !== 'getInitData') {
@@ -3478,6 +3467,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderInventoryAlerts();
 
         const ledger = lastHistoryData.ledger;
+        const personalSalesByMonth = ledgerIncludePersonal ? (lastHistoryData.personalSalesByMonth || {}) : {};
         const recentActions = lastHistoryData.recentActions || [];
 
         // 選択されている期間文字列 (例: "2026-04", "2026-FY", "2026-Q1")
@@ -3514,8 +3504,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             // 個人用売上の集計
-            const psData = (lastHistoryData && lastHistoryData.personalSalesByMonth) || {};
-            for (const ym in psData) {
+            for (const ym in personalSalesByMonth) {
                 const [y, m] = ym.split('-');
                 if (String(y) === String(targetY)) {
                     let match = false;
@@ -3526,7 +3515,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     else if (targetP === 'Q4') match = (parseInt(m) >= 10 && parseInt(m) <= 12);
                     else if (m === targetP) match = true;
 
-                    if (match) res.personalSales += psData[ym];
+                    if (match) res.personalSales += personalSalesByMonth[ym];
                 }
             }
             return res;
@@ -3639,7 +3628,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // グラフ描画：トレンドの決定
         const chartBars = document.querySelector('.chart-bars');
-        const personalSalesByMonth = (lastHistoryData && lastHistoryData.personalSalesByMonth) || {};
+        const legend = document.querySelector('.chart-legend');
+        legend?.querySelector('.dot.personal')?.closest('.legend-item')?.remove();
         if (chartBars && Object.keys(monthlySum).length > 0) {
             const allMonths = Object.keys(monthlySum).sort();
             let monthsToShow = [];
@@ -3719,8 +3709,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // 凡例に「個人」を追加（個人用データがある場合）
             const hasPersonalData = monthsToShow.some(m => personalSalesByMonth[m] > 0);
-            const legend = document.querySelector('.chart-legend');
-            if (legend && hasPersonalData && !legend.querySelector('.dot.personal')) {
+            if (legend && hasPersonalData) {
                 const personalLegend = document.createElement('div');
                 personalLegend.className = 'legend-item';
                 personalLegend.innerHTML = '<div class="dot personal"></div>個人';

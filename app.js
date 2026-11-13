@@ -6,7 +6,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentAuthKey = '';
     let sessionToken = '';
     const rememberedLoginKey = 'inventory_login_session';
-    const supportsRememberedLogin = !window.google?.script?.run;
+    const rememberLoginOption = document.getElementById('remember-login-option');
+    const rememberLogin = document.getElementById('remember-login');
+    const logout = document.getElementById('logout-btn');
+    const supportsRememberedLogin = !window.google?.script?.run &&
+        Boolean(rememberLoginOption && rememberLogin && logout);
     localStorage.removeItem('inventory_auth_key');
 
     // Global state
@@ -184,8 +188,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 初期化完了後に検索ボタンを配置
         initQuickSearchButtons();
         if (supportsRememberedLogin) {
-            document.getElementById('remember-login-option').hidden = false;
-            const logout = document.getElementById('logout-btn');
+            rememberLoginOption.hidden = false;
             logout.style.display = '';
             logout.onclick = async () => {
                 logout.disabled = true;
@@ -929,7 +932,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             errorMsg.style.display = 'none';
 
             try {
-                const remember = supportsRememberedLogin && document.getElementById('remember-login').checked;
+                const remember = supportsRememberedLogin && rememberLogin.checked;
                 const token = remember
                     ? Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('')
                     : '';

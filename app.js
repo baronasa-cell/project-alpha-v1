@@ -5462,13 +5462,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const salesModal = document.getElementById('sales-analysis-modal');
         const historyModal = document.getElementById('history-search-modal');
 
-        if (salesBtn) {
+        if (salesBtn && salesModal) {
             salesBtn.addEventListener('click', () => {
                 const sideMenu = document.getElementById('side-menu');
                 const menuOverlay = document.getElementById('menu-overlay');
                 if (sideMenu) sideMenu.classList.remove('open');
                 if (menuOverlay) menuOverlay.classList.remove('visible');
-                salesModal.style.display = 'flex';
+                salesModal.classList.add('active');
                 renderSalesAnalysis();
             });
         }
@@ -5483,7 +5483,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const salesCloseBtn = document.getElementById('sales-analysis-close-btn');
-        if (salesCloseBtn) salesCloseBtn.addEventListener('click', () => salesModal.style.display = 'none');
+        if (salesCloseBtn && salesModal) salesCloseBtn.addEventListener('click', () => salesModal.classList.remove('active'));
 
         const historyCloseBtn = document.getElementById('history-search-close-btn');
         if (historyCloseBtn) historyCloseBtn.addEventListener('click', () => historyModal.style.display = 'none');
@@ -5508,7 +5508,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         window.addEventListener('click', (event) => {
-            if (event.target === salesModal) salesModal.style.display = 'none';
+            if (salesModal && event.target === salesModal) salesModal.classList.remove('active');
             if (event.target === historyModal) historyModal.style.display = 'none';
         });
     }
@@ -5577,7 +5577,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             prodContainer.innerHTML = productRank.length > 0 ? productRank.map((item, idx) => `
                 <div class="analysis-item">
                     <div class="analysis-item-rank">${idx + 1}</div>
-                    <div class="analysis-item-name" title="${item[0]}">${item[0]}</div>
+                    <div class="analysis-item-name" title="${escapeHtml(item[0])}">${escapeHtml(item[0])}</div>
                     <div class="analysis-item-value">
                         <div class="analysis-item-amount">¥${Math.round(item[1].sales).toLocaleString()}</div>
                         <div class="analysis-item-sub">${item[1].count}件</div>
@@ -5612,7 +5612,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             buyerContainer.innerHTML = buyerRank.length > 0 ? buyerRank.map((item, idx) => `
                 <div class="analysis-item">
                     <div class="analysis-item-rank">${idx + 1}</div>
-                    <div class="analysis-item-name" title="${item[0]}">${item[0]}</div>
+                    <div class="analysis-item-name" title="${escapeHtml(item[0])}">${escapeHtml(item[0])}</div>
                     <div class="analysis-item-value">
                         <div class="analysis-item-amount">¥${Math.round(item[1].sales).toLocaleString()}</div>
                         <div class="analysis-item-sub">${item[1].count}件</div>

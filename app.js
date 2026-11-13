@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ---- API Configuration ----
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzY_IuQn_5tG_bGBP459xIPoekQoeEdxEo5nfIO3yeC8chmyHicQNzjgseGXtlol2q0SA/exec';
     let currentAuthKey = '';
+    let sessionToken = '';
+    const rememberedLoginKey = 'inventory_login_session';
+    const supportsRememberedLogin = !window.google?.script?.run;
     localStorage.removeItem('inventory_auth_key');
 
     // Global state
@@ -180,10 +183,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 初期化完了後に検索ボタンを配置
         initQuickSearchButtons();
-        await new Promise(resolve => {
-            setupLoginHandlers(resolve);
-            showLoginModal();
-        });
+        if (supportsRememberedLogin) {
+            document.getElementById('remember-login-option').hidden = false;
+            const logout = document.getElementById('logout-btn');
+            logout.style.display = '';
+            logout.onclick = async () => {
+                logout.disabled = true;
+                try {
+                    if (sessionToken) {
+                        const result = await fetchAPI('endSession');
+                        if (result.status !== 'success' && result.message !== 'Unauthorized') {
+                            throw new Error('Logout failed');
+                        }
+                    }
+                    clearLoginSession();
+                    window.location.reload();
+                } catch {
+                    showToast('ログアウトできませんでした。通信状況を確認してください。', 'error');
+                } finally {
+                    logout.disabled = false;
+                }
+            };
+        }
+        if (await restoreLoginSession()) {
+            setupLoginHandlers(null);
+        } else {
+            await new Promise(resolve => {
+                setupLoginHandlers(resolve);
+                showLoginModal();
+            });
+        }
         // 認証済みの場合、即座にコンテナを表示 (読み込み中アニメーションを表示させるため)
         const appContainer = document.querySelector('.app-container');
         if (appContainer) {
@@ -781,9 +810,9 @@ document.addEventListener('DOMContentLoaded', async () => {
      * API通信の共通処理 (GAS本番環境とローカル環境を自動判別)
      */
     async function fetchAPI(action, payload = {}) {
-        const bodyData = Object.assign({ action: action, key: currentAuthKey }, payload);
+        const bodyData = Object.assign({ action, key: currentAuthKey, sessionToken }, payload);
 
-        if (!currentAuthKey && action !== 'getInitData') {
+        if (!bodyData.key && !bodyData.sessionToken && action !== 'getInitData') {
             console.warn(`[fetchAPI] Warning: No auth key for action: ${action}`);
         }
 
@@ -819,7 +848,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             const result = await response.json();
-            if (action !== 'checkAuth' && result.status === 'error' && result.message.includes('Unauthorized')) {
+            if (!['checkAuth', 'startSession', 'endSession'].includes(action) && result.status === 'error' && result.message.includes('Unauthorized')) {
                 console.error(`[fetchAPI] Unauthorized error for action: ${action}`, result);
                 handleUnauthorized();
             }
@@ -833,8 +862,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     /**
      * 認証エラー時の処理
      */
-    function handleUnauthorized() {
+    function clearLoginSession() {
         currentAuthKey = '';
+        sessionToken = '';
+        try {
+            localStorage.removeItem(rememberedLoginKey);
+        } catch {
+            // 保存領域を使えない場合もメモリ上の認証情報は破棄する。
+        }
+    }
+
+    async function restoreLoginSession() {
+        if (!supportsRememberedLogin) return false;
+        try {
+            const saved = JSON.parse(localStorage.getItem(rememberedLoginKey));
+            if (!saved || typeof saved.token !== 'string' || !(saved.expiresAt > Date.now())) {
+                clearLoginSession();
+                return false;
+            }
+            const result = await fetchAPI('checkAuth', { sessionToken: saved.token });
+            if (result.status !== 'success') {
+                if (result.message === 'Unauthorized') clearLoginSession();
+                return false;
+            }
+            sessionToken = saved.token;
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    function handleUnauthorized() {
+        clearLoginSession();
         const appContainer = document.querySelector('.app-container');
         if (appContainer) appContainer.style.display = 'none';
         showLoginModal();
@@ -863,18 +922,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const handleLogin = async () => {
             const password = passwordInput.value;
-            if (!password) return;
+            if (!password || submitBtn.disabled) return;
 
             submitBtn.disabled = true;
             submitBtn.textContent = '認証中...';
             errorMsg.style.display = 'none';
 
             try {
-                const result = await fetchAPI('checkAuth', { key: password });
+                const remember = supportsRememberedLogin && document.getElementById('remember-login').checked;
+                const token = remember
+                    ? Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('')
+                    : '';
+                const result = await fetchAPI(remember ? 'startSession' : 'checkAuth', { key: password, sessionToken: token });
 
                 if (result.status === 'success') {
                     // 認証成功
-                    currentAuthKey = password;
+                    clearLoginSession();
+                    if (remember) {
+                        sessionToken = token;
+                        try {
+                            localStorage.setItem(rememberedLoginKey, JSON.stringify({ token, expiresAt: result.expiresAt }));
+                        } catch {
+                            showToast('この端末ではログイン状態を保存できません。', 'error');
+                        }
+                    } else {
+                        currentAuthKey = password;
+                    }
                     passwordInput.value = '';
                     document.getElementById('login-modal').style.display = 'none';
 

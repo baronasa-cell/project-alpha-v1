@@ -2903,7 +2903,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (isReadOnly) {
                 const displayVal = (type === 'number' && typeof value === 'number') ? value.toLocaleString() : (value || '-');
-                return `<div class="input-group mini"><label>${label}</label><div class="static-value">${displayVal}</div></div>`;
+                return `<div class="input-group mini"><label>${label}</label><div class="static-value">${escapeHtml(displayVal)}</div></div>`;
             }
 
             // datalist ID の解決 (index.html の定義に合わせる)
@@ -2918,11 +2918,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (type === 'number') {
                 // 0 の場合は空にして placeholder で 0 を出すことで 0999 問題を回避
                 const valAttr = (value === 0 || value === '0' || !value) ? '' : value;
-                return `<div class="input-group mini"><label>${label}</label><input type="number" class="note-input" data-header="${header}" value="${valAttr}" placeholder="0" step="any"></div>`;
+                return `<div class="input-group mini"><label>${label}</label><input type="number" class="note-input" data-header="${header}" value="${escapeHtml(valAttr)}" placeholder="0" step="any"></div>`;
             } else if (type === 'date') {
                 return `<div class="input-group mini"><label>${label}</label><input type="date" class="date-input" data-header="${header}" value="${formatISODate(value)}"></div>`;
             } else {
-                const listAttr = listId ? `list="${listId}"` : '';
+                const listAttr = listId ? `list="${escapeHtml(listId)}"` : '';
                 return `<div class="input-group mini"><label>${label}</label><input type="text" class="note-input" data-header="${header}" value="${escapeHtml(value)}" ${listAttr}></div>`;
             }
         };
@@ -2931,7 +2931,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="history-card-header">
                 <div class="header-left">
                     <span class="history-id">${id}</span>
-                    ${(tab === 'sales' && item['売先']) ? `<span class="badge badge-buyer">${item['売先']}</span>` : ''}
+                    ${(tab === 'sales' && item['売先']) ? `<span class="badge badge-buyer">${escapeHtml(item['売先'])}</span>` : ''}
                     ${(tab === 'sales' && item['送料負担区分'] == 1) ? '<span class="badge badge-warning">落札者負担</span>' : ''}
                     ${(tab === 'expense' && item['管理対象'] == 1) ? '<span class="badge badge-info"><ion-icon name="cube-outline"></ion-icon> 在庫対象</span>' : ''}
                     ${(tab === 'expense' && item['レシート'] == 1) ? '<span class="badge badge-secondary"><ion-icon name="receipt-outline"></ion-icon> レシート有</span>' : ''}
@@ -2949,13 +2949,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </button>
                     ` : ''}
                     <button class="update-mini-btn" data-id="${escapeHtml(id)}" data-tab="${tab}" data-item="${escapeHtml(itemName)}"
-                        data-category="${item['区分'] || ''}" data-account="${item['仕訳'] || ''}" 
-                        data-current-status="${item['ステータス'] || ''}" 
-                        data-quantity="${item['数量'] || item['製造数量'] || 0}"
-                        data-price="${item['価格'] || item['合計金額'] || item['販売価格'] || 0}"
-                        data-vendor="${item['仕入先'] || item['購入先'] || ''}"
-                        data-payment="${item['支払方法'] || ''}"
-                        data-buyer="${item['売先'] || ''}"
+                        data-category="${escapeHtml(item['区分'] || '')}" data-account="${escapeHtml(item['仕訳'] || '')}"
+                        data-current-status="${escapeHtml(item['ステータス'] || '')}"
+                        data-quantity="${escapeHtml(item['数量'] || item['製造数量'] || 0)}"
+                        data-price="${escapeHtml(item['価格'] || item['合計金額'] || item['販売価格'] || 0)}"
+                        data-vendor="${escapeHtml(item['仕入先'] || item['購入先'] || '')}"
+                        data-payment="${escapeHtml(item['支払方法'] || '')}"
+                        data-buyer="${escapeHtml(item['売先'] || '')}"
                         data-shipping="${escapeHtml(item['発送方法'] || '')}"
                         data-is-personal="${(item['管理対象外'] == 1 || item['管理区分'] == 1) ? 'true' : 'false'}"
                         title="変更を保存">
@@ -3023,7 +3023,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             `;
         } else if (tab === 'manufacturing') {
             innerHTML += `
-                <div class="history-product-info" style="display: flex; align-items: center;">${thumbHtml}${escapeHtml(itemName)} 数量:${item['数量'] || item['製造数量']} 単価:${item['単価'] || 0}</div>
+                <div class="history-product-info" style="display: flex; align-items: center;">${thumbHtml}${escapeHtml(itemName)} 数量:${escapeHtml(item['数量'] || item['製造数量'])} 単価:${escapeHtml(item['単価'] || 0)}</div>
                 <div class="process-steps-container">
                     <label class="group-label">工程進捗管理</label>
                     <div class="process-dates-grid">
@@ -3046,10 +3046,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const formattedTotal = typeof totalPrice === 'number' ? totalPrice.toLocaleString() : totalPrice;
             const trackingUrl = getTrackingUrl(item['発送方法'], item['追跡番号']);
             innerHTML += `
-                <div class="history-product-info" style="display: flex; align-items: center;">${thumbHtml}${escapeHtml(itemName)} 数量:${item['数量']} 価格:¥${formattedTotal}(単価:¥${formattedUnit}) 送料:¥${(item['送料'] || 0).toLocaleString()}</div>
+                <div class="history-product-info" style="display: flex; align-items: center;">${thumbHtml}${escapeHtml(itemName)} 数量:${escapeHtml(item['数量'])} 価格:¥${escapeHtml(formattedTotal)}(単価:¥${escapeHtml(formattedUnit)}) 送料:¥${escapeHtml((item['送料'] || 0).toLocaleString())}</div>
                 <div class="history-inputs-grid" style="margin-bottom: 8px;">
                     ${createInputHtml('販売開始日', '販売開始日', item['販売開始日'], 'sales-date', 'date', false)}
-                    <div class="input-group mini"><label>発送方法</label><div class="static-value">${item['発送方法'] || '-'}</div></div>
+                    <div class="input-group mini"><label>発送方法</label><div class="static-value">${escapeHtml(item['発送方法'] || '-')}</div></div>
                 </div>
                 <div class="process-steps-container">
                     <label class="group-label">取引工程日付</label>
@@ -3064,7 +3064,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="input-group mini">
                         <label>追跡番号</label>
                         <div style="display: flex; gap: 4px; align-items: center;">
-                            <input type="text" class="note-input" data-header="追跡番号" value="${item['追跡番号'] || ''}" placeholder="追跡番号" style="flex: 1;">
+                            <input type="text" class="note-input" data-header="追跡番号" value="${escapeHtml(item['追跡番号'] || '')}" placeholder="追跡番号" style="flex: 1;">
                             ${trackingUrl ? `<a href="${trackingUrl}" target="_blank" class="mini-icon-link" title="配送状況を確認"><ion-icon name="navigate-circle-outline"></ion-icon></a>` : ''}
                         </div>
                     </div>
@@ -3176,7 +3176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         let options = statuses.map(s => {
             const selected = s['ステータス名称'] === currentStatus ? 'selected' : '';
-            return `<option value="${s['ステータス名称']}" ${selected}>${s['ステータス名称']}</option>`;
+            return `<option value="${escapeHtml(s['ステータス名称'])}" ${selected}>${escapeHtml(s['ステータス名称'])}</option>`;
         }).join('');
 
         return `<label>ステータス</label><select class="status-select">${options}</select>`;
@@ -3187,7 +3187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
      */
     function generateCategorySelect(label, actionName, currentValue, isReadOnly) {
         if (isReadOnly) {
-            return `<div class="input-group mini"><label>${label}</label><div class="static-value">${currentValue || '-'}</div></div>`;
+            return `<div class="input-group mini"><label>${label}</label><div class="static-value">${escapeHtml(currentValue || '-')}</div></div>`;
         }
 
         // M_画面制御から設定を取得を試みる
@@ -3204,7 +3204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const fixedValues = fixedStr.split(',').map(v => v.trim()).filter(v => v);
             options += fixedValues.map(val => {
                 const selected = val === currentValue ? 'selected' : '';
-                return `<option value="${val}" ${selected}>${val}</option>`;
+                return `<option value="${escapeHtml(val)}" ${selected}>${escapeHtml(val)}</option>`;
             }).join('');
         } else {
             const refMasterName = ctrl ? ctrl['参照マスタ'] : 'M_区分';
@@ -3225,7 +3225,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const val = c['区分名'] || c['区分名称'] || c['項目名'] || c['仕訳名'] || c['カテゴリ'] || Object.values(c)[1];
                 if (!val) return '';
                 const selected = val === currentValue ? 'selected' : '';
-                return `<option value="${val}" ${selected}>${val}</option>`;
+                return `<option value="${escapeHtml(val)}" ${selected}>${escapeHtml(val)}</option>`;
             }).join('');
         }
 

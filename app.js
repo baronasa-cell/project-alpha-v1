@@ -2209,7 +2209,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (isVerified && isStocktakeMode) card.classList.add('verified-row');
 
             const itemInMaster = (currentMasters['M_商品'] || []).find(m => m['品名'] === itemName);
-            const imageUrl = itemInMaster ? itemInMaster['画像URL'] : null;
+            const imageUrl = safeHttpsUrl(itemInMaster?.['画像URL']);
             const itemID = (itemInMaster && itemInMaster['商品ID']) || row['商品ID'] || '';
             const location = row['保管場所'] || (itemInMaster && itemInMaster['保管場所']) || '';
             const barcode = (itemInMaster && itemInMaster['QR/バーコード']) || row['QR/バーコード'] || '';
@@ -2230,16 +2230,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 card.innerHTML = `
                     <div class="card-header">
-                        <div class="product-thumb-container" onclick="showImageModal('${(imageUrl || '').replace(/'/g, "\\'")}')">
-                            ${imageUrl ? `<img src="${imageUrl}" loading="lazy">` : `<ion-icon name="image-outline"></ion-icon>`}
+                        <div class="product-thumb-container">
+                            ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" loading="lazy">` : `<ion-icon name="image-outline"></ion-icon>`}
                         </div>
                         <div class="card-main-info">
-                            <div class="card-product-name">${itemName}</div>
-                            <div class="card-category-badge">${category}</div>
+                            <div class="card-product-name">${escapeHtml(itemName)}</div>
+                            <div class="card-category-badge">${escapeHtml(category)}</div>
                             <div class="card-sub-info">
-                                ${itemID ? `<span class="id-badge">${itemID}</span>` : ''}
-                                ${barcode ? `<span class="barcode-badge"><ion-icon name="barcode-outline"></ion-icon>${barcode}</span>` : ''}
-                                ${location ? location.split(/[／/，,、\s]+/).filter(s => s).map(loc => `<span class="location-badge"><ion-icon name="location-outline"></ion-icon>${loc}</span>`).join('') : ''}
+                                ${itemID ? `<span class="id-badge">${escapeHtml(itemID)}</span>` : ''}
+                                ${barcode ? `<span class="barcode-badge"><ion-icon name="barcode-outline"></ion-icon>${escapeHtml(barcode)}</span>` : ''}
+                                ${location ? location.split(/[／/，,、\s]+/).filter(s => s).map(loc => `<span class="location-badge"><ion-icon name="location-outline"></ion-icon>${escapeHtml(loc)}</span>`).join('') : ''}
                                 ${lastStocktakeDate ? `前回: ${lastStocktakeDate.toLocaleDateString()} ` : ''}
                                 ${isRecent ? `<span class="stocktake-done-badge"><ion-icon name="checkmark"></ion-icon>完了</span>` : ''}
                             </div>
@@ -2325,16 +2325,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 card.innerHTML = `
                     <div class="card-header">
-                        <div class="product-thumb-container" onclick="showImageModal('${(imageUrl || '').replace(/'/g, "\\'")}')">
-                            ${imageUrl ? `<img src="${imageUrl}" loading="lazy">` : `<ion-icon name="image-outline"></ion-icon>`}
+                        <div class="product-thumb-container">
+                            ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" loading="lazy">` : `<ion-icon name="image-outline"></ion-icon>`}
                         </div>
                         <div class="card-main-info">
-                            <div class="card-product-name clickable" onclick="navigateToTransactionForm('${(itemName || '').replace(/'/g, "\\'")}', '${(category || '').replace(/'/g, "\\'")}')">${itemName}</div>
-                            <div class="card-category-badge">${category}</div>
+                            <div class="card-product-name clickable" data-name="${escapeHtml(itemName)}" data-category="${escapeHtml(category)}" onclick="navigateToTransactionForm(this.dataset.name, this.dataset.category)">${escapeHtml(itemName)}</div>
+                            <div class="card-category-badge">${escapeHtml(category)}</div>
                             <div class="card-sub-info">
-                                ${itemID ? `<span class="id-badge">${itemID}</span>` : ''}
-                                ${barcode ? `<span class="barcode-badge"><ion-icon name="barcode-outline"></ion-icon>${barcode}</span>` : ''}
-                                ${location ? location.split(/[／/，,、\s]+/).filter(s => s).map(loc => `<span class="location-badge"><ion-icon name="location-outline"></ion-icon>${loc}</span>`).join('') : ''}
+                                ${itemID ? `<span class="id-badge">${escapeHtml(itemID)}</span>` : ''}
+                                ${barcode ? `<span class="barcode-badge"><ion-icon name="barcode-outline"></ion-icon>${escapeHtml(barcode)}</span>` : ''}
+                                ${location ? location.split(/[／/，,、\s]+/).filter(s => s).map(loc => `<span class="location-badge"><ion-icon name="location-outline"></ion-icon>${escapeHtml(loc)}</span>`).join('') : ''}
                             </div>
                         </div>
                         <div class="status-icon-wrap">
@@ -2353,7 +2353,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div class="stepper-placeholder"></div>
                         </div>
                         <div class="card-actions action-col" style="margin-top: 4px;">
-                            <button class="camera-btn" onclick="triggerPhotoUpload('${(itemName || '').replace(/'/g, "\\'")}')" title="写真を登録/変更" style="margin-left:0;">
+                            <button class="camera-btn" data-name="${escapeHtml(itemName)}" onclick="triggerPhotoUpload(this.dataset.name)" title="写真を登録/変更" style="margin-left:0;">
                                 <ion-icon name="camera-outline"></ion-icon>
                             </button>
                             <button class="update-mini-btn no-text btn-save-threshold ${isThresholdDirty ? 'is-dirty' : ''}" title="数値を確定待ちに追加">
@@ -2923,7 +2923,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return `<div class="input-group mini"><label>${label}</label><input type="date" class="date-input" data-header="${header}" value="${formatISODate(value)}"></div>`;
             } else {
                 const listAttr = listId ? `list="${listId}"` : '';
-                return `<div class="input-group mini"><label>${label}</label><input type="text" class="note-input" data-header="${header}" value="${value || ''}" ${listAttr}></div>`;
+                return `<div class="input-group mini"><label>${label}</label><input type="text" class="note-input" data-header="${header}" value="${escapeHtml(value)}" ${listAttr}></div>`;
             }
         };
 
@@ -2943,12 +2943,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
                 <div class="header-right" style="display: flex; gap: 8px;">
                     ${(tab === 'manufacturing' && !['完了', 'キャンセル'].includes(item['ステータス'])) ? `
-                        <button class="add-material-btn" data-id="${id}" title="部材を追加消費する">
+                        <button class="add-material-btn" data-id="${escapeHtml(id)}" title="部材を追加消費する">
                             <ion-icon name="add-circle-outline"></ion-icon>
                             <span>部材追加</span>
                         </button>
                     ` : ''}
-                    <button class="update-mini-btn" data-id="${id}" data-tab="${tab}" data-item="${itemName}" 
+                    <button class="update-mini-btn" data-id="${escapeHtml(id)}" data-tab="${tab}" data-item="${escapeHtml(itemName)}"
                         data-category="${item['区分'] || ''}" data-account="${item['仕訳'] || ''}" 
                         data-current-status="${item['ステータス'] || ''}" 
                         data-quantity="${item['数量'] || item['製造数量'] || 0}"
@@ -2956,7 +2956,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         data-vendor="${item['仕入先'] || item['購入先'] || ''}"
                         data-payment="${item['支払方法'] || ''}"
                         data-buyer="${item['売先'] || ''}"
-                        data-shipping="${item['発送方法'] || ''}"
+                        data-shipping="${escapeHtml(item['発送方法'] || '')}"
                         data-is-personal="${(item['管理対象外'] == 1 || item['管理区分'] == 1) ? 'true' : 'false'}"
                         title="変更を保存">
                         <span>保存</span>
@@ -2968,15 +2968,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
         const itemInMaster = (currentMasters['M_商品'] || []).find(m => m['品名'] === itemName);
-        const imageUrl = itemInMaster ? itemInMaster['画像URL'] : null;
-        const thumbHtml = imageUrl ? `<div class="product-thumb-container" style="width:30px; height:30px; margin-right:8px; border-radius:4px;" onclick="showImageModal('${imageUrl}')"><img src="${imageUrl}" loading="lazy"></div>` : '';
+        const imageUrl = safeHttpsUrl(itemInMaster?.['画像URL']);
+        const thumbHtml = imageUrl ? `<div class="product-thumb-container" style="width:30px; height:30px; margin-right:8px; border-radius:4px;"><img src="${escapeHtml(imageUrl)}" loading="lazy"></div>` : '';
 
         if (tab === 'purchase') {
             const isPlanned = (item['ステータス'] === '購入予定');
             const isPending = (isPlanned && (!item['価格'] || !item['数量']));
             innerHTML += `
                 <div class="history-product-info" style="display: flex; align-items: center;">
-                    ${thumbHtml}${itemName}
+                    ${thumbHtml}${escapeHtml(itemName)}
                     ${isPending ? '<span class="badge badge-pending" style="margin-left:8px; font-size:10px;">情報未確定</span>' : ''}
                 </div>
                 <div class="history-inputs-grid">
@@ -2990,7 +2990,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="input-group mini">${generateStatusSelect(id, '仕入', item['ステータス'])}</div>
                 </div>
                 <div class="history-note" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(0,0,0,0.1); font-size: 0.85em; color: var(--text-muted);">
-                    <textarea class="note-input" data-header="備考" rows="2" style="width:100%; background:rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.1); border-radius:4px; padding:4px;">${item['備考'] || item['note'] || ''}</textarea>
+                    <textarea class="note-input" data-header="備考" rows="2" style="width:100%; background:rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.1); border-radius:4px; padding:4px;">${escapeHtml(item['備考'] || item['note'] || '')}</textarea>
                 </div>
             `;
         } else if (tab === 'expense') {
@@ -2998,7 +2998,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isPending = (isPlanned && (!item['合計金額'] || !item['数量']));
             innerHTML += `
                 <div class="history-product-info" style="display: flex; align-items: center;">
-                    ${thumbHtml}${itemName}
+                    ${thumbHtml}${escapeHtml(itemName)}
                     ${isPending ? '<span class="badge badge-pending" style="margin-left:8px; font-size:10px;">情報未確定</span>' : ''}
                 </div>
                 <div class="history-inputs-grid">
@@ -3018,12 +3018,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </label>
                 </div>
                 <div class="history-note" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(0,0,0,0.1); font-size: 0.85em; color: var(--text-muted);">
-                    <textarea class="note-input" data-header="備考" rows="2" style="width:100%; background:rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.1); border-radius:4px; padding:4px;">${item['備考'] || item['note'] || ''}</textarea>
+                    <textarea class="note-input" data-header="備考" rows="2" style="width:100%; background:rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.1); border-radius:4px; padding:4px;">${escapeHtml(item['備考'] || item['note'] || '')}</textarea>
                 </div>
             `;
         } else if (tab === 'manufacturing') {
             innerHTML += `
-                <div class="history-product-info" style="display: flex; align-items: center;">${thumbHtml}${itemName} 数量:${item['数量'] || item['製造数量']} 単価:${item['単価'] || 0}</div>
+                <div class="history-product-info" style="display: flex; align-items: center;">${thumbHtml}${escapeHtml(itemName)} 数量:${item['数量'] || item['製造数量']} 単価:${item['単価'] || 0}</div>
                 <div class="process-steps-container">
                     <label class="group-label">工程進捗管理</label>
                     <div class="process-dates-grid">
@@ -3036,7 +3036,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
                 <div class="history-note" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(0,0,0,0.12); font-size: 0.85em; color: var(--text-muted);">
-                    <textarea class="note-input" data-header="備考" rows="2" style="width:100%; background:rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.1); border-radius:4px; padding:4px;">${item['備考'] || item['note'] || item['メモ'] || ''}</textarea>
+                    <textarea class="note-input" data-header="備考" rows="2" style="width:100%; background:rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.1); border-radius:4px; padding:4px;">${escapeHtml(item['備考'] || item['note'] || item['メモ'] || '')}</textarea>
                 </div>
             `;
         } else if (tab === 'sales') {
@@ -3046,7 +3046,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const formattedTotal = typeof totalPrice === 'number' ? totalPrice.toLocaleString() : totalPrice;
             const trackingUrl = getTrackingUrl(item['発送方法'], item['追跡番号']);
             innerHTML += `
-                <div class="history-product-info" style="display: flex; align-items: center;">${thumbHtml}${itemName} 数量:${item['数量']} 価格:¥${formattedTotal}(単価:¥${formattedUnit}) 送料:¥${(item['送料'] || 0).toLocaleString()}</div>
+                <div class="history-product-info" style="display: flex; align-items: center;">${thumbHtml}${escapeHtml(itemName)} 数量:${item['数量']} 価格:¥${formattedTotal}(単価:¥${formattedUnit}) 送料:¥${(item['送料'] || 0).toLocaleString()}</div>
                 <div class="history-inputs-grid" style="margin-bottom: 8px;">
                     ${createInputHtml('販売開始日', '販売開始日', item['販売開始日'], 'sales-date', 'date', false)}
                     <div class="input-group mini"><label>発送方法</label><div class="static-value">${item['発送方法'] || '-'}</div></div>
@@ -3070,7 +3070,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
                 <div class="history-note" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(0,0,0,0.12); font-size: 0.85em; color: var(--text-muted);">
-                    <textarea class="note-input" data-header="備考" rows="2" style="width:100%; background:rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.1); border-radius:4px; padding:4px;">${item['備考'] || item['note'] || ''}</textarea>
+                    <textarea class="note-input" data-header="備考" rows="2" style="width:100%; background:rgba(0,0,0,0.05); border:1px solid rgba(0,0,0,0.1); border-radius:4px; padding:4px;">${escapeHtml(item['備考'] || item['note'] || '')}</textarea>
                 </div>
             `;
         }
@@ -3791,7 +3791,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return `
                     <tr>
                         <td class="sticky-col first">${formatDate(row['日付'], 'short')}</td>
-                        <td class="sticky-col second" title="${itemName}" onclick="this.classList.toggle('expanded')">${itemName}</td>
+                        <td class="sticky-col second" title="${escapeHtml(itemName)}" onclick="this.classList.toggle('expanded')">${escapeHtml(itemName)}</td>
                         <td>${s > 0 ? '¥' + s.toLocaleString() : "-"}</td>
                         <td>${p > 0 ? '¥' + p.toLocaleString() : "-"}</td>
                         <td>${c > 0 ? '¥' + c.toLocaleString() : "-"}</td>
@@ -3942,11 +3942,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetchAPI('exportLedgerReport', { period: period, includePersonal: !!ledgerIncludePersonal });
 
             if (response.status === 'success') {
+                const reportUrl = safeHttpsUrl(response.url);
+                if (!reportUrl) throw new Error('帳票の出力先URLが無効です。');
                 showToast('レポート出力が完了しました');
                 statusArea.className = 'export-status-area success';
                 statusArea.innerHTML = `
-                    <p>出力完了: ${response.fileName}</p>
-                    <a href="${response.url}" target="_blank" class="download-link">
+                    <p>出力完了: ${escapeHtml(response.fileName)}</p>
+                    <a href="${escapeHtml(reportUrl)}" target="_blank" rel="noopener noreferrer" class="download-link">
                         <ion-icon name="open-outline"></ion-icon> スプレッドシートを開く
                     </a>
                 `;
@@ -3956,7 +3958,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) {
             showToast('エクスポート失敗: ' + e.message, 'error');
             statusArea.className = 'export-status-area error';
-            statusArea.innerHTML = `<p>出力エラー: ${e.message}</p>`;
+            statusArea.innerHTML = `<p>出力エラー: ${escapeHtml(e.message)}</p>`;
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalContent;
@@ -4043,10 +4045,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!previewElm || !currentMasters['M_商品']) return;
 
         const product = currentMasters['M_商品'].find(r => r['品名'] === itemName);
-        const imageUrl = product ? product['画像URL'] : null;
+        const imageUrl = safeHttpsUrl(product?.['画像URL']);
 
         if (imageUrl) {
-            previewElm.innerHTML = `<img src="${imageUrl}" onclick="showImageModal('${imageUrl}')">`;
+            const image = document.createElement('img');
+            image.src = imageUrl;
+            image.addEventListener('click', () => window.showImageModal(imageUrl));
+            previewElm.replaceChildren(image);
             previewElm.classList.add('visible');
         } else {
             previewElm.innerHTML = '';
@@ -4148,7 +4153,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     /**
      * 大画面プレビューの表示/非表示
      */
+    function escapeHtml(value) {
+        const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+        return String(value ?? '').replace(/[&<>"']/g, char => entities[char]);
+    }
+
+    function safeHttpsUrl(value) {
+        try {
+            const url = new URL(value);
+            return url.protocol === 'https:' && !url.username && !url.password ? url.href : '';
+        } catch {
+            return '';
+        }
+    }
+
+    document.addEventListener('click', event => {
+        const thumbnail = event.target.closest?.('.product-thumb-container img');
+        if (thumbnail) window.showImageModal(thumbnail.src);
+    });
+
     window.showImageModal = function (url) {
+        url = safeHttpsUrl(url);
         if (!url) return;
         const modal = document.getElementById('image-modal');
         const content = document.getElementById('image-modal-content');
@@ -4265,17 +4290,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             let actionBtn = '';
             if (isMade) {
-                actionBtn = `<button class="alert-btn make" onclick="jumpToTab('manufacturing', '${itemName}')"><ion-icon name="hammer-outline"></ion-icon>製造へ</button>`;
+                actionBtn = `<button class="alert-btn make" data-name="${escapeHtml(itemName)}" onclick="jumpToTab('manufacturing', this.dataset.name)"><ion-icon name="hammer-outline"></ion-icon>製造へ</button>`;
             } else if (isExpense) {
-                actionBtn = `<button class="alert-btn expense" onclick="jumpToTab('expense', '${itemName}')"><ion-icon name="cash-outline"></ion-icon>経費へ</button>`;
+                actionBtn = `<button class="alert-btn expense" data-name="${escapeHtml(itemName)}" onclick="jumpToTab('expense', this.dataset.name)"><ion-icon name="cash-outline"></ion-icon>経費へ</button>`;
             } else {
-                actionBtn = `<button class="alert-btn purchase" onclick="jumpToTab('purchase', '${itemName}')"><ion-icon name="cart-outline"></ion-icon>仕入へ</button>`;
+                actionBtn = `<button class="alert-btn purchase" data-name="${escapeHtml(itemName)}" onclick="jumpToTab('purchase', this.dataset.name)"><ion-icon name="cart-outline"></ion-icon>仕入へ</button>`;
             }
 
             html += `
                 <div class="alert-card ${cardClass}">
                     <div class="alert-info">
-                        <h4>${itemName}</h4>
+                        <h4>${escapeHtml(itemName)}</h4>
                         <div class="alert-status-row">
                             <span class="alert-current-qty">現在: <b>${qty}</b></span>
                             <span class="alert-threshold">閾値: ${threshold}</span>
@@ -4612,7 +4637,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             addBtn.onclick = () => showMasterEntryModal(masterKey, keys, null);
 
         } catch (e) {
-            body.innerHTML = `<tr><td colspan="5" style="color:red; text-align:center; padding: 20px;">取得エラー: ${e.message}</td></tr>`;
+            body.innerHTML = `<tr><td colspan="5" style="color:red; text-align:center; padding: 20px;">取得エラー: ${escapeHtml(e.message)}</td></tr>`;
         }
     }
 
@@ -4751,7 +4776,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </select>
                 `;
             } else if (type === 'textarea') {
-                inputHtml = `<textarea name="${key}" ${!isEditable ? 'readonly class="readonly-field"' : ''}>${value !== undefined ? value : ''}</textarea>`;
+                inputHtml = `<textarea name="${key}" ${!isEditable ? 'readonly class="readonly-field"' : ''}>${escapeHtml(value !== undefined ? value : '')}</textarea>`;
             } else if (key === 'QR/バーコード') {
                 inputHtml = `
                     <div class="input-with-icon">
@@ -5676,7 +5701,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <span class="item-status-badge ${isCompleted ? 'completed' : ''}">${status}</span>
                                 ${isIncome && buyer ? `<span class="badge badge-buyer">${buyer}</span>` : ''}
                             </div>
-                            <h4 class="item-name-text">${itemName}</h4>
+                            <h4 class="item-name-text">${escapeHtml(itemName)}</h4>
                             <div class="item-sub-meta">
                                 <span>${dateStr}</span>
                                 <span>数量: ${qty}</span>

@@ -4537,3 +4537,17 @@ th.sticky-col {
     color: var(--text-muted);
 }
 
+
+.purchase-amounts, .purchase-refund {
+    grid-column: 1 / -1;
+}
+
+.purchase-amounts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.purchase-refund input {
+    width: 100%;
+}

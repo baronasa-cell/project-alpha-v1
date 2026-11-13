@@ -3058,8 +3058,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="history-inputs-grid">
                     ${createInputHtml('仕入日', '仕入日', item['仕入日'] || item['発注日'], 'buy-date', 'date', false)}
                     ${createInputHtml('入庫日', '入庫日', item['入庫日'], 'buy-date', 'date', false)}
+                    <div class="purchase-amounts">
                     ${createInputHtml('価格', '価格', item['価格'], 'buy-price', 'number', !isPlanned)}
                     ${createInputHtml('数量', '数量', item['数量'], 'buy-quantity', 'number', !isPlanned)}
+                    ${createInputHtml('単価', '単価', item['単価'], '', 'number', true)}
+                    </div>
+                    ${!isPlanned && !['入庫済み','入庫済','完了','キャンセル','返品完了','返金済み'].includes(item['ステータス']) ? `
+                    <details class="purchase-refund" data-quantity="${escapeHtml(item['数量'])}" data-price="${escapeHtml(item['価格'])}">
+                        <summary>不足分の返金を反映する</summary>
+                        <div class="history-inputs-grid">
+                            <label>実入荷数 <input type="number" min="1" step="1"></label>
+                            <label>返金額（円） <input type="number" min="0.01" step="0.01"></label>
+                        </div>
+                        <output>実入荷数と返金額を入力してください。</output>
+                    </details>` : ''}
                     ${createInputHtml('仕入先', '仕入先', item['仕入先'], 'buy-vendor', null, !isPlanned)}
                     ${createInputHtml('支払方法', '支払方法', item['支払方法'], 'buy-payment', null, !isPlanned)}
                     ${generateCategorySelect('区分', '仕入', item['区分'], !isPlanned)}
@@ -3152,6 +3164,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         card.innerHTML = innerHTML;
+        const refund = card.querySelector('.purchase-refund');
+        refund?.addEventListener('input', () => {
+            const values = readPurchaseRefund(refund);
+            refund.querySelector('output').textContent = values
+                ? `返金後の価格 ${(values.cents / 100).toFixed(2)}円 ／ 入庫単価 ${(Math.round(values.cents / values.quantity) / 100).toFixed(2)}円`
+                : '実入荷数と返金額を確認してください。';
+        });
 
         // クリアボタンの適用
         const textInputs = card.querySelectorAll('input[type="text"], input[type="number"]');
@@ -3308,6 +3327,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         return `<div class="input-group mini"><label>${label}</label><select class="note-input" data-header="${label}">${options}</select></div>`;
     }
 
+    function readPurchaseRefund(refund) {
+        const [quantityInput, amountInput] = refund.querySelectorAll('input');
+        const quantity = Number(quantityInput.value);
+        const amount = Number(amountInput.value);
+        const originalQuantity = Number(refund.dataset.quantity);
+        const originalPrice = Number(refund.dataset.price);
+        const cents = Math.round(originalPrice * 100) - Math.round(amount * 100);
+        if (!quantityInput.checkValidity() || !amountInput.checkValidity() ||
+            !Number.isInteger(quantity) || quantity < 1 || !(quantity < originalQuantity) ||
+            !(amount > 0) || !(cents > 0)) return null;
+        return { quantity, amount, originalQuantity, originalPrice, cents };
+    }
+
     async function handleHistorySave(btn) {
         const originalHTML = btn.innerHTML;
         const id = btn.getAttribute('data-id');
@@ -3365,6 +3397,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
+        const refund = card.querySelector('.purchase-refund[open]');
+        const purchaseRefund = refund ? readPurchaseRefund(refund) : null;
+        if (refund && (!purchaseRefund || newStatus !== '入庫済み')) {
+            alert('実入荷数と返金額を確認し、入庫済みを選んでください。');
+            return;
+        }
+
         // 保存前のバリデーション (提案30)
         const currentTab = btn.getAttribute('data-tab');
         const sheetNameMap = {
@@ -3392,6 +3431,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 finalData.vendor = dateUpdates['仕入先'];
                 finalData.price = (isPlanned && (dateUpdates['価格'] === '' || dateUpdates['価格'] === undefined)) ? 0 : (parseFloat(dateUpdates['価格']) || 0);
                 finalData.quantity = (isPlanned && (dateUpdates['数量'] === '' || dateUpdates['数量'] === undefined)) ? 1 : (parseFloat(dateUpdates['数量']) || 0);
+                if (purchaseRefund) {
+                    finalData.price = purchaseRefund.cents / 100;
+                    finalData.quantity = purchaseRefund.quantity;
+                }
                 finalData.payment = dateUpdates['支払方法'];
                 finalData.category = dateUpdates['区分'] || btn.getAttribute('data-category');
             } else if (currentTab === 'expense') {
@@ -3446,7 +3489,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 id: id,
                 updates: {
                     status: newStatus,
-                    dates: dateUpdates
+                    dates: dateUpdates,
+                    ...(purchaseRefund ? { purchaseRefund } : {})
                 },
                 scope: refreshScope
             });

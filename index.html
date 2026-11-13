@@ -19,6 +19,9 @@
             <p style="margin-bottom: 20px; font-size: 0.9rem; color: #666;">パスワードを入力してください</p>
             <input type="password" id="login-password" class="search-input" placeholder="パスワード" style="width: 100%; margin-bottom: 20px; padding: 12px;">
             <div id="login-error" style="color: #e74c3c; margin-bottom: 15px; display: none; font-size: 0.85rem;">パスワードが正しくありません</div>
+            <div id="remember-login-option" hidden style="margin-bottom: 12px;">
+                <label><input type="checkbox" id="remember-login"> この端末で8時間ログインを維持</label>
+            </div>
             <button id="login-submit-btn" class="primary-btn" style="width: 100%;">ログイン</button>
         </div>
     </div>
@@ -52,6 +55,7 @@
                     <span>過去履歴検索</span>
                 </li>
             </ul>
+            <button type="button" id="logout-btn" class="icon-btn" aria-label="ログアウト" title="ログアウト" style="display:none;"><ion-icon name="log-out-outline"></ion-icon></button>
             <div class="menu-footer">
                 <p>Ver 1.0.0</p>
             </div>

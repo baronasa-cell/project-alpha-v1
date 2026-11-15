@@ -159,12 +159,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         uncheckedOnly: false      // フィルタ状態
     };
 
+    const historyFilters = new Map();
+    const historyRenderIds = new Map();
+    const historySheets = { purchase: "T_仕入", expense: "T_経費", manufacturing: "T_製造", sales: "T_販売" };
+
     try {
         // ---- 1. Event Listener Registrations (Essential UI) ----
         setupNavigation();
         setupToggleLogics();
         setupSettingsListeners();
         setupAnalysisAndSearchListeners();
+        setupHistoryFilters();
         setupScannerListeners(); // スキャナーはデータロードを待たずに即座に有効化
         setupInventoryCheckListeners();
 
@@ -643,10 +648,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const sCompleted = document.getElementById('sales-completed-count');
         if (sCompleted) sCompleted.textContent = (summary.completedSalesCount || 0);
 
-        // 販売・製造履歴の絞り込み用オプションを更新
-        updateSalesFilterOptions(history['T_販売']);
-        updateManufacturingFilterOptions(history['T_製造']);
-
         renderHistoryCards('purchase', history['T_仕入']);
         renderHistoryCards('expense', history['T_経費']);
         renderHistoryCards('manufacturing', history['T_製造']);
@@ -662,101 +663,64 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    /**
-     * 販売履歴のフィルターオプションを更新する
-     */
-    function updateSalesFilterOptions(data) {
-        if (!data) return;
-        const statusSelect = document.getElementById('sales-history-status-filter');
-        const buyerSelect = document.getElementById('sales-history-buyer-filter');
-        if (!statusSelect || !buyerSelect) return;
-
-        const currentStatus = statusSelect.value;
-        const currentBuyer = buyerSelect.value;
-
-        const statuses = new Set();
-        const buyers = new Set();
-        data.forEach(item => {
-            if (item['ステータス']) statuses.add(item['ステータス'].trim());
-            if (item['売先']) buyers.add(item['売先'].trim());
-        });
-
-        statusSelect.innerHTML = '<option value="">すべて</option>';
-        [...statuses].sort().forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s;
-            opt.textContent = s;
-            statusSelect.appendChild(opt);
-        });
-
-        buyerSelect.innerHTML = '<option value="">すべて</option>';
-        [...buyers].sort().forEach(b => {
-            const opt = document.createElement('option');
-            opt.value = b;
-            opt.textContent = b;
-            buyerSelect.appendChild(opt);
-        });
-
-        if (statuses.has(currentStatus)) statusSelect.value = currentStatus;
-        if (buyers.has(currentBuyer)) buyerSelect.value = currentBuyer;
+    function setupHistoryFilters() {
+        for (const [tab, sheet] of Object.entries(historySheets)) {
+            const panel = document.getElementById(tab + "-history-filter");
+            const clear = document.querySelector(".history-filter-clear[data-history-tab=" + tab + "]");
+            if (!panel || !clear) continue;
+            const fields = [...panel.querySelectorAll("input, select")];
+            const redraw = () => renderHistoryCards(tab, lastHistoryData?.history?.[sheet]);
+            panel.querySelector(".history-filter-apply").onclick = () => {
+                const filter = Object.fromEntries(fields.map(field => [field.name, field.value.trim()]));
+                if (filter.from && filter.to && filter.from > filter.to) {
+                    alert("終了日は開始日以降を指定してください。");
+                    return;
+                }
+                historyFilters.set(tab, filter);
+                panel.open = false;
+                redraw();
+            };
+            clear.onclick = () => {
+                historyFilters.delete(tab);
+                fields.forEach(field => { field.value = ""; });
+                panel.open = false;
+                redraw();
+            };
+        }
     }
 
-    /**
-     * 製造履歴のフィルターオプションを更新する
-     */
-    function updateManufacturingFilterOptions(data) {
-        if (!data) return;
-        const statusSelect = document.getElementById('manufacturing-history-status-filter');
-        const itemSelect = document.getElementById('manufacturing-history-item-filter');
-        if (!statusSelect || !itemSelect) return;
-
-        const currentStatus = statusSelect.value;
-        const currentItem = itemSelect.value;
-
-        const statuses = new Set();
-        const items = new Set();
-        data.forEach(item => {
-            if (item['ステータス']) statuses.add(item['ステータス'].trim());
-            const itemName = item['品名'] || item['完成品名'];
-            if (itemName) items.add(itemName.trim());
+    function filterHistoryRows(tab, data, filter) {
+        const text = value => String(value ?? "").trim();
+        const normalize = value => text(value).normalize("NFKC").toLowerCase();
+        const keyword = normalize(filter.keyword);
+        return data.filter(row => {
+            if (filter.status && text(row["ステータス"]) !== filter.status) return false;
+            const name = row["品名"] || row["完成品名"];
+            if (filter.item && text(name) !== filter.item) return false;
+            if (filter.buyer && text(row["売先"]) !== filter.buyer) return false;
+            const vendor = tab === "purchase" ? row["仕入先"] : row["購入先"];
+            if (keyword && ![name, vendor].some(value => normalize(value).includes(keyword))) return false;
+            if (!filter.from && !filter.to) return true;
+            const dates = { purchase: row["仕入日"] || row["発注日"], expense: row["登録日"] || row["注文日"],
+                manufacturing: row["製造開始日"], sales: row["販売開始日"] || row["取引開始日"] };
+            const date = formatISODate(dates[tab]);
+            return Boolean(date) && (!filter.from || date >= filter.from) && (!filter.to || date <= filter.to);
         });
-
-        statusSelect.innerHTML = '<option value="">すべて</option>';
-        [...statuses].sort().forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s;
-            opt.textContent = s;
-            statusSelect.appendChild(opt);
-        });
-
-        itemSelect.innerHTML = '<option value="">すべて</option>';
-        [...items].sort().forEach(i => {
-            const opt = document.createElement('option');
-            opt.value = i;
-            opt.textContent = i;
-            itemSelect.appendChild(opt);
-        });
-
-        if (statuses.has(currentStatus)) statusSelect.value = currentStatus;
-        if (items.has(currentItem)) itemSelect.value = currentItem;
     }
 
-    /**
-     * 製造履歴にフィルターを適用
-     */
-    window.applyManufacturingHistoryFilter = function () {
-        if (!lastHistoryData || !lastHistoryData.history) return;
-        renderHistoryCards('manufacturing', lastHistoryData.history['T_製造']);
-    };
+    function updateHistoryFilterOptions(tab, data, filter) {
+        const panel = document.getElementById(tab + "-history-filter");
+        if (!panel) return;
+        const columns = { status: row => row["ステータス"], item: row => row["品名"] || row["完成品名"], buyer: row => row["売先"] };
+        for (const select of panel.querySelectorAll("select")) {
+            const selected = panel.open ? select.value : filter[select.name] || "";
+            const values = new Set(data.map(row => String(columns[select.name](row) ?? "").trim()).filter(Boolean));
+            if (selected) values.add(selected);
+            select.replaceChildren(new Option("すべて", ""), ...[...values].sort().map(value => new Option(value, value)));
+            select.value = selected;
+        }
+    }
 
-    window.applySalesHistoryFilter = function () {
-        if (!lastHistoryData || !lastHistoryData.history) return;
-        renderHistoryCards('sales', lastHistoryData.history['T_販売']);
-    };
-
-    /**
-     * ナビゲーションバッジの更新
-     */
     function updateNavBadges() {
         if (!lastHistoryData) return;
 
@@ -2856,6 +2820,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderHistoryCards(tab, data) {
         const container = document.getElementById(`${tab}-history-list`);
         if (!container) return;
+        const renderId = (historyRenderIds.get(tab) || 0) + 1;
+        historyRenderIds.set(tab, renderId);
 
         // データ読み込み中
         if (data === undefined) {
@@ -2891,36 +2857,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
+        const filter = historyFilters.get(tab) || {};
+        const renderData = filterHistoryRows(tab, data || [], filter);
+        const activeCount = Object.values(filter).filter(Boolean).length;
+        const filterCount = document.getElementById(tab + "-history-filter-count");
+        const clear = document.querySelector(".history-filter-clear[data-history-tab=" + tab + "]");
+        if (filterCount) filterCount.textContent = renderData.length + "件 / 全" + count + "件" + (activeCount ? " ・ 条件" + activeCount + "件" : "");
+        if (clear) clear.hidden = !activeCount;
+        updateHistoryFilterOptions(tab, data || [], filter);
+
         if (!data || data.length === 0) {
             container.innerHTML = '<p class="empty-msg">現在進行中の履歴はありません</p>';
             return;
-        }
-
-        // --- 絞り込みロジック (A案: サマリーは全体のまま、リストだけ絞る) ---
-        let renderData = data;
-        if (tab === 'sales') {
-            const statusFilter = document.getElementById('sales-history-status-filter')?.value;
-            const buyerFilter = document.getElementById('sales-history-buyer-filter')?.value;
-
-            if (statusFilter) {
-                renderData = renderData.filter(item => (item['ステータス'] || '').trim() === statusFilter);
-            }
-            if (buyerFilter) {
-                renderData = renderData.filter(item => (item['売先'] || '').trim() === buyerFilter);
-            }
-        } else if (tab === 'manufacturing') {
-            const statusFilter = document.getElementById('manufacturing-history-status-filter')?.value;
-            const itemFilter = document.getElementById('manufacturing-history-item-filter')?.value;
-
-            if (statusFilter) {
-                renderData = renderData.filter(item => (item['ステータス'] || '').trim() === statusFilter);
-            }
-            if (itemFilter) {
-                renderData = renderData.filter(item => {
-                    const name = (item['品名'] || item['完成品名'] || '').trim();
-                    return name === itemFilter;
-                });
-            }
         }
 
         if (!renderData || renderData.length === 0) {
@@ -2933,6 +2881,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         let index = 0;
 
         function renderChunk() {
+            if (historyRenderIds.get(tab) !== renderId) return;
             const fragment = document.createDocumentFragment();
             const limit = Math.min(index + CHUNK_SIZE, renderData.length);
 

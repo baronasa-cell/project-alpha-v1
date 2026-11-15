@@ -370,11 +370,11 @@
                     </h2>
                     <details id="purchase-history-filter" class="history-filter-container glass-card">
                         <summary>絞り込み</summary>
-                        <div class="input-grid">
-                            <label>ステータス<select name="status"><option value="">すべて</option></select></label>
-                            <label>品名・仕入先<input type="search" name="keyword"></label>
-                            <label>仕入日（開始）<input type="date" name="from"></label>
-                            <label>仕入日（終了）<input type="date" name="to"></label>
+                        <div class="history-inputs-grid">
+                            <div class="input-group mini"><label for="purchase-history-filter-status">ステータス</label><select id="purchase-history-filter-status" name="status"><option value="">すべて</option></select></div>
+                            <div class="input-group mini"><label for="purchase-history-filter-keyword">品名・仕入先</label><input id="purchase-history-filter-keyword" type="search" name="keyword"></div>
+                            <div class="input-group mini"><label for="purchase-history-filter-from">仕入日（開始）</label><input id="purchase-history-filter-from" type="date" name="from"></div>
+                            <div class="input-group mini"><label for="purchase-history-filter-to">仕入日（終了）</label><input id="purchase-history-filter-to" type="date" name="to"></div>
                         </div>
                         <button type="button" class="history-filter-apply">適用</button>
                     </details>
@@ -460,11 +460,11 @@
                     </h2>
                     <details id="manufacturing-history-filter" class="history-filter-container glass-card">
                         <summary>絞り込み</summary>
-                        <div class="input-grid">
-                            <label>ステータス<select name="status"><option value="">すべて</option></select></label>
-                            <label>品名<select name="item"><option value="">すべて</option></select></label>
-                            <label>製造開始日（開始）<input type="date" name="from"></label>
-                            <label>製造開始日（終了）<input type="date" name="to"></label>
+                        <div class="history-inputs-grid">
+                            <div class="input-group mini"><label for="manufacturing-history-filter-status">ステータス</label><select id="manufacturing-history-filter-status" name="status"><option value="">すべて</option></select></div>
+                            <div class="input-group mini"><label for="manufacturing-history-filter-item">品名</label><select id="manufacturing-history-filter-item" name="item"><option value="">すべて</option></select></div>
+                            <div class="input-group mini"><label for="manufacturing-history-filter-from">製造開始日（開始）</label><input id="manufacturing-history-filter-from" type="date" name="from"></div>
+                            <div class="input-group mini"><label for="manufacturing-history-filter-to">製造開始日（終了）</label><input id="manufacturing-history-filter-to" type="date" name="to"></div>
                         </div>
                         <button type="button" class="history-filter-apply">適用</button>
                     </details>
@@ -624,11 +624,11 @@
                     </h2>
                     <details id="sales-history-filter" class="history-filter-container glass-card">
                         <summary>絞り込み</summary>
-                        <div class="input-grid">
-                            <label>ステータス<select name="status"><option value="">すべて</option></select></label>
-                            <label>売先<select name="buyer"><option value="">すべて</option></select></label>
-                            <label>販売開始日（開始）<input type="date" name="from"></label>
-                            <label>販売開始日（終了）<input type="date" name="to"></label>
+                        <div class="history-inputs-grid">
+                            <div class="input-group mini"><label for="sales-history-filter-status">ステータス</label><select id="sales-history-filter-status" name="status"><option value="">すべて</option></select></div>
+                            <div class="input-group mini"><label for="sales-history-filter-buyer">売先</label><select id="sales-history-filter-buyer" name="buyer"><option value="">すべて</option></select></div>
+                            <div class="input-group mini"><label for="sales-history-filter-from">販売開始日（開始）</label><input id="sales-history-filter-from" type="date" name="from"></div>
+                            <div class="input-group mini"><label for="sales-history-filter-to">販売開始日（終了）</label><input id="sales-history-filter-to" type="date" name="to"></div>
                         </div>
                         <button type="button" class="history-filter-apply">適用</button>
                     </details>
@@ -756,11 +756,11 @@
                     </h2>
                     <details id="expense-history-filter" class="history-filter-container glass-card">
                         <summary>絞り込み</summary>
-                        <div class="input-grid">
-                            <label>ステータス<select name="status"><option value="">すべて</option></select></label>
-                            <label>品名・購入先<input type="search" name="keyword"></label>
-                            <label>登録日（開始）<input type="date" name="from"></label>
-                            <label>登録日（終了）<input type="date" name="to"></label>
+                        <div class="history-inputs-grid">
+                            <div class="input-group mini"><label for="expense-history-filter-status">ステータス</label><select id="expense-history-filter-status" name="status"><option value="">すべて</option></select></div>
+                            <div class="input-group mini"><label for="expense-history-filter-keyword">品名・購入先</label><input id="expense-history-filter-keyword" type="search" name="keyword"></div>
+                            <div class="input-group mini"><label for="expense-history-filter-from">登録日（開始）</label><input id="expense-history-filter-from" type="date" name="from"></div>
+                            <div class="input-group mini"><label for="expense-history-filter-to">登録日（終了）</label><input id="expense-history-filter-to" type="date" name="to"></div>
                         </div>
                         <button type="button" class="history-filter-apply">適用</button>
                     </details>

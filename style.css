@@ -4576,38 +4576,8 @@ th.sticky-col {
     font-weight: 600;
 }
 
-.history-filter-container .input-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+.history-filter-container .history-inputs-grid {
     margin-top: 8px;
-}
-
-.history-filter-container label {
-    display: grid;
-    gap: 4px;
-    min-width: 0;
-    font-size: 11px;
-}
-
-.history-filter-container input,
-.history-filter-container select {
-    box-sizing: border-box;
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    height: 38px;
-    padding: 8px 10px;
-    font-size: 13px;
-}
-
-.history-filter-container input[type="date"] {
-    -webkit-appearance: none;
-    display: block;
-    padding-inline: 4px;
-}
-
-.history-filter-container input[type="date"]::-webkit-date-and-time-value {
-    min-width: 0;
-    text-align: start;
 }
 
 .history-filter-apply,

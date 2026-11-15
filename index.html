@@ -368,7 +368,17 @@
                         <ion-icon name="time-outline"></ion-icon>
                         仕入履歴
                     </h2>
-                    
+                    <details id="purchase-history-filter" class="history-filter-container glass-card">
+                        <summary>絞り込み</summary>
+                        <div class="input-grid">
+                            <label>ステータス<select name="status"><option value="">すべて</option></select></label>
+                            <label>品名・仕入先<input type="search" name="keyword"></label>
+                            <label>仕入日（開始）<input type="date" name="from"></label>
+                            <label>仕入日（終了）<input type="date" name="to"></label>
+                        </div>
+                        <button type="button" class="history-filter-apply">適用</button>
+                    </details>
+                    <div class="history-filter-result"><span id="purchase-history-filter-count" aria-live="polite"></span> <button type="button" class="history-filter-clear" data-history-tab="purchase" hidden>解除</button></div>
                     <div id="purchase-history-list">
                         <div class="empty-history" style="padding: 40px; text-align: center; color: var(--text-muted);">
                             <ion-icon name="sync-outline" class="spinning" style="font-size: 24px; margin-bottom: 8px;"></ion-icon>
@@ -448,25 +458,17 @@
                         <ion-icon name="list-outline"></ion-icon>
                         製造履歴・進捗管理
                     </h2>
-
-                    <!-- 製造履歴フィルター (提案28) -->
-                    <div class="history-filter-container glass-card shadow-none" style="padding: 12px; margin-bottom: 16px; background: rgba(255,255,255,0.4);">
+                    <details id="manufacturing-history-filter" class="history-filter-container glass-card">
+                        <summary>絞り込み</summary>
                         <div class="input-grid">
-                            <div class="input-group mini" style="margin-bottom: 0;">
-                                <label style="font-size: 11px;">ステータス</label>
-                                <select id="manufacturing-history-status-filter" style="padding: 6px 10px; font-size: 13px; height: 36px;" onchange="applyManufacturingHistoryFilter()">
-                                    <option value="">すべて</option>
-                                </select>
-                            </div>
-                            <div class="input-group mini" style="margin-bottom: 0;">
-                                <label style="font-size: 11px;">品名</label>
-                                <select id="manufacturing-history-item-filter" style="padding: 6px 10px; font-size: 13px; height: 36px;" onchange="applyManufacturingHistoryFilter()">
-                                    <option value="">すべて</option>
-                                </select>
-                            </div>
+                            <label>ステータス<select name="status"><option value="">すべて</option></select></label>
+                            <label>品名<select name="item"><option value="">すべて</option></select></label>
+                            <label>製造開始日（開始）<input type="date" name="from"></label>
+                            <label>製造開始日（終了）<input type="date" name="to"></label>
                         </div>
-                    </div>
-                    
+                        <button type="button" class="history-filter-apply">適用</button>
+                    </details>
+                    <div class="history-filter-result"><span id="manufacturing-history-filter-count" aria-live="polite"></span> <button type="button" class="history-filter-clear" data-history-tab="manufacturing" hidden>解除</button></div>
                     <div id="manufacturing-history-list">
                         <div class="empty-history" style="padding: 40px; text-align: center; color: var(--text-muted);">
                             <ion-icon name="sync-outline" class="spinning" style="font-size: 24px; margin-bottom: 8px;"></ion-icon>
@@ -620,24 +622,17 @@
                         <ion-icon name="ship-outline"></ion-icon>
                         発送・取引待ち
                     </h2>
-                    
-                    <div class="history-filter-container glass-card shadow-none" style="padding: 12px; margin-bottom: 16px; background: rgba(255,255,255,0.4);">
+                    <details id="sales-history-filter" class="history-filter-container glass-card">
+                        <summary>絞り込み</summary>
                         <div class="input-grid">
-                            <div class="input-group mini" style="margin-bottom: 0;">
-                                <label style="font-size: 11px;">ステータス</label>
-                                <select id="sales-history-status-filter" style="padding: 6px 10px; font-size: 13px; height: 36px;" onchange="applySalesHistoryFilter()">
-                                    <option value="">すべて</option>
-                                </select>
-                            </div>
-                            <div class="input-group mini" style="margin-bottom: 0;">
-                                <label style="font-size: 11px;">売先</label>
-                                <select id="sales-history-buyer-filter" style="padding: 6px 10px; font-size: 13px; height: 36px;" onchange="applySalesHistoryFilter()">
-                                    <option value="">すべて</option>
-                                </select>
-                            </div>
+                            <label>ステータス<select name="status"><option value="">すべて</option></select></label>
+                            <label>売先<select name="buyer"><option value="">すべて</option></select></label>
+                            <label>販売開始日（開始）<input type="date" name="from"></label>
+                            <label>販売開始日（終了）<input type="date" name="to"></label>
                         </div>
-                    </div>
-                    
+                        <button type="button" class="history-filter-apply">適用</button>
+                    </details>
+                    <div class="history-filter-result"><span id="sales-history-filter-count" aria-live="polite"></span> <button type="button" class="history-filter-clear" data-history-tab="sales" hidden>解除</button></div>
                     <div id="sales-history-list">
                         <div class="empty-history" style="padding: 40px; text-align: center; color: var(--text-muted);">
                             <ion-icon name="sync-outline" class="spinning" style="font-size: 24px; margin-bottom: 8px;"></ion-icon>
@@ -759,7 +754,17 @@
                         <ion-icon name="time-outline"></ion-icon>
                         経費履歴
                     </h2>
-                    
+                    <details id="expense-history-filter" class="history-filter-container glass-card">
+                        <summary>絞り込み</summary>
+                        <div class="input-grid">
+                            <label>ステータス<select name="status"><option value="">すべて</option></select></label>
+                            <label>品名・購入先<input type="search" name="keyword"></label>
+                            <label>登録日（開始）<input type="date" name="from"></label>
+                            <label>登録日（終了）<input type="date" name="to"></label>
+                        </div>
+                        <button type="button" class="history-filter-apply">適用</button>
+                    </details>
+                    <div class="history-filter-result"><span id="expense-history-filter-count" aria-live="polite"></span> <button type="button" class="history-filter-clear" data-history-tab="expense" hidden>解除</button></div>
                     <div id="expense-history-list">
                         <div class="empty-history" style="padding: 40px; text-align: center; color: var(--text-muted);">
                             <ion-icon name="sync-outline" class="spinning" style="font-size: 24px; margin-bottom: 8px;"></ion-icon>

@@ -941,17 +941,27 @@ input:checked + .slider:before {
     font-weight: 500;
 }
 
+.input-group input,
+.input-group select,
+.input-group textarea,
+.history-filter-container input,
+.history-filter-container select,
+.history-card .date-input-mini input,
+.history-card .date-input-mini select,
+.history-card .purchase-refund input {
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.06);
+    background: rgba(255, 255, 255, 0.7);
+    color: var(--text-main);
+}
+
 .input-group input, 
 .input-group select, 
 .input-group textarea {
     width: 100%;
     min-width: 0; /* 防止: 突き出し */
     padding: 14px 16px;
-    border-radius: 12px;
-    border: 1px solid rgba(0,0,0,0.06);
-    background: rgba(255, 255, 255, 0.7);
     font-size: 15px;
-    color: var(--text-main);
     transition: all 0.2s ease;
 }
 
@@ -981,9 +991,14 @@ input:checked + .slider:before {
     }
 }
 
-.input-group input:focus, 
+.input-group input:focus,
 .input-group select:focus,
-.input-group textarea:focus {
+.input-group textarea:focus,
+.history-filter-container input:focus,
+.history-filter-container select:focus,
+.history-card .date-input-mini input:focus,
+.history-card .date-input-mini select:focus,
+.history-card .purchase-refund input:focus {
     outline: none;
     border-color: var(--accent-green);
     background: #fff;
@@ -4550,4 +4565,71 @@ th.sticky-col {
 
 .purchase-refund input {
     width: 100%;
+}
+
+.history-filter-container.glass-card {
+    padding: 10px 12px;
+}
+
+.history-filter-container summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.history-filter-container .input-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 8px;
+}
+
+.history-filter-container label {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    font-size: 13px;
+}
+
+.history-filter-container input,
+.history-filter-container select {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 6px 8px;
+    font-size: 16px;
+}
+
+.history-filter-apply,
+.history-filter-clear {
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--accent-green);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.history-filter-apply {
+    display: block;
+    margin: 8px 0 0 auto;
+    background: var(--accent-green);
+    color: white;
+}
+
+.history-filter-result {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 6px 0;
+    font-size: 13px;
+}
+
+.history-filter-clear {
+    background: transparent;
+    color: var(--text-primary);
+}
+
+.history-filter-clear[hidden] {
+    display: none;
 }

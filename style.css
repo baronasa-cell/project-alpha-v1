@@ -4585,7 +4585,7 @@ th.sticky-col {
     display: grid;
     gap: 4px;
     min-width: 0;
-    font-size: 13px;
+    font-size: 11px;
 }
 
 .history-filter-container input,
@@ -4593,9 +4593,21 @@ th.sticky-col {
     box-sizing: border-box;
     width: 100%;
     min-width: 0;
-    min-height: 40px;
-    padding: 6px 8px;
-    font-size: 16px;
+    max-width: 100%;
+    height: 38px;
+    padding: 8px 10px;
+    font-size: 13px;
+}
+
+.history-filter-container input[type="date"] {
+    -webkit-appearance: none;
+    display: block;
+    padding-inline: 4px;
+}
+
+.history-filter-container input[type="date"]::-webkit-date-and-time-value {
+    min-width: 0;
+    text-align: start;
 }
 
 .history-filter-apply,

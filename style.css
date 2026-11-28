@@ -4836,3 +4836,15 @@ th.sticky-col {
 .history-filter-clear[hidden] {
     display: none;
 }
+
+/* PROP-070：通常登録・個別履歴の確認だけに適用する。 */
+#transaction-confirm-modal { z-index: 1250; }
+#transaction-confirm-modal .modal-container { max-width: 520px; max-height: 90vh; max-height: 90dvh; }
+#transaction-confirm-modal .modal-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+#transaction-confirm-modal .modal-header h2 { margin: 0; font-size: 18px; }
+#transaction-confirm-fields { display: grid; grid-template-columns: minmax(80px, 30%) minmax(0, 1fr); gap: 12px; margin: 0; font-size: 15px; }
+#transaction-confirm-fields dt { color: var(--text-muted); }
+#transaction-confirm-fields dd { margin: 0; overflow-wrap: anywhere; }
+#transaction-confirm-notice { margin: 18px 0 0; padding: 12px; border-radius: 10px; background: var(--bg-secondary, #f3f7f4); font-size: 14px; line-height: 1.6; }
+.transaction-confirm-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); flex-shrink: 0; gap: 12px; padding: 16px 20px; border-top: 1px solid var(--glass-border); }
+#transaction-confirm-modal .transaction-confirm-actions button { flex: 1; min-width: 0; width: auto; min-height: 46px; margin: 0; padding: 10px 8px; font-size: 14px; line-height: 1.4; }

@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const APP_VERSION = '2026.11.28.2'; // version.jsonからbuild.ps1で同期
+    const APP_VERSION = '2026.11.28.3'; // version.jsonからbuild.ps1で同期
     console.log('System initialization started... (' + APP_VERSION + ')');
 
     // ---- API Configuration ----
@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentMasters = {};
     let lastHistoryData = {}; // 帳簿表示用などにデータを保持
     let lastRawData = {};    // サーバーから届いた生データを保持（マージ用）
+    let transactionConfirmationState_ = null;
+    const transactionSubmissionLocks_ = new Set();
     let ledgerYear = new Date().getFullYear();
     let ledgerPeriod = String(new Date().getMonth() + 1).padStart(2, '0'); // デフォルトは「今月」
     let ledgerIncludePersonal = false; // 月次明細の個人合算フラグ（デフォルト: 事業のみ）
@@ -135,6 +137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { name: '対象機能', type: 'text', visible: true, editable: true, required: true },
                 { name: '画面名称', type: 'text', visible: true, editable: true, required: true },
                 { name: 'ステータス名称', type: 'text', visible: true, editable: true, required: true },
+                { name: '確認表示', type: 'text', visible: true, editable: false, required: false },
                 { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true }
             ]
         },
@@ -2274,6 +2277,113 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
     }
 
+    function transactionConfirmationSpec_(sheet) {
+        return {
+            'T_仕入': { action: '仕入', entry: '新規仕入', history: '進行中の仕入状況', statusId: 'buy-status-entry' },
+            'T_経費': { action: '経費', entry: '経費登録', history: '最近の経費', statusId: 'exp-status-entry' },
+            'T_製造': { action: '製造', entry: '新規製造', history: '製造中プロジェクト', statusId: 'make-status-entry' },
+            'T_販売': { action: '販売', entry: '販売登録', history: '発送・取引待ち', statusId: 'sale-status-entry' }
+        }[sheet];
+    }
+
+    function shouldConfirmTransaction_(masters, sheet, mode, status, oldStatus = '') {
+        const next = String(status || '').trim(), previous = String(oldStatus || '').trim();
+        if (mode === 'update' && next === previous) return false;
+        const fallback = mode === 'update' && ['完了', 'キャンセル', '入庫済み', '発送済み'].includes(next);
+        const spec = transactionConfirmationSpec_(sheet);
+        if (!spec) return fallback;
+        const control = (masters['M_画面制御'] || []).find(row => row['対象機能'] === spec.action && row['参照マスタ'] === 'M_ステータス' &&
+            (mode === 'new' ? row['要素ID'] === spec.statusId : String(row['要素ID'] || '').endsWith('-status-')));
+        const screen = control?.['画面名称'] || (mode === 'new' ? spec.entry : spec.history);
+        const rows = (masters['M_ステータス'] || []).filter(row => row['対象機能'] === spec.action && row['画面名称'] === screen &&
+            String(row['ステータス名称'] || '').trim() === next && (row['使用FLG'] == 1 || row['使用FLG'] === true));
+        // 重複や未設定を推測で適用せず、従来の判断へ戻す。
+        if (rows.length !== 1) return fallback;
+        const flag = rows[0]['確認表示'];
+        if (flag === 1 || (typeof flag === 'string' && flag.trim() === '1')) return true;
+        if (flag === 0 || (typeof flag === 'string' && flag.trim() === '0')) return false;
+        return fallback;
+    }
+
+    function transactionConfirmationDetails_(sheet, mode, data, oldStatus, id) {
+        const text = value => value === undefined || value === null || value === '' || (typeof value === 'number' && !Number.isFinite(value)) ? '未入力' : String(value);
+        const money = value => text(value) === '未入力' ? '未入力' : Number(value).toLocaleString('ja-JP', { maximumFractionDigits: 20 }) + '円';
+        const fields = [];
+        if (id) fields.push(['取引ID', String(id)]);
+        fields.push(['品名', text(data.item)], ['数量', text(data.quantity) === '未入力' ? '未入力' : text(data.quantity) + '個']);
+        fields.push([({ 'T_仕入': '仕入日', 'T_経費': '注文日', 'T_製造': '製造開始日', 'T_販売': '販売開始日' })[sheet] || '日付', text(data.date)]);
+        if (sheet !== 'T_製造') fields.push([sheet === 'T_販売' ? '販売総額' : '合計金額', money(data.price)]);
+        if (sheet === 'T_仕入' || sheet === 'T_経費') fields.push([sheet === 'T_仕入' ? '仕入先' : '購入先', text(data.vendor)]);
+        if (sheet === 'T_経費') fields.push(['仕訳', text(data.account)]);
+        if (sheet === 'T_販売') fields.push(['売先', text(data.buyer)], ['発送方法', text(data.shipping)], ['送料', money(data.shippingCost)]);
+        fields.push([mode === 'new' ? 'ステータス' : 'ステータス変更', mode === 'new' ? text(data.status) : text(oldStatus) + ' → ' + text(data.status)]);
+        let notice = '確定すると、この内容を送信します。';
+        if (data.status === 'キャンセル') notice = '関連する在庫の取消処理を行います。';
+        else if (sheet === 'T_仕入' && ['入庫済み', '入庫済', '完了'].includes(data.status)) notice = '入庫対象の場合、仕入数量を在庫へ反映します。';
+        else if (sheet === 'T_製造' && data.status === '製造開始') notice = '製造予定数に必要な部品の引当処理を行います。';
+        else if (sheet === 'T_製造' && data.status === '完了') notice = '完成品の入庫処理を行います。';
+        else if ((sheet === 'T_販売' || sheet === 'T_経費') && data.status === '完了') {
+            notice = '帳簿への記録処理を行います。';
+            if (sheet === 'T_経費' && (data.isStock == 1 || data['管理対象'] == 1)) notice += '管理対象の数量を在庫へ反映します。';
+        }
+        else if (sheet === 'T_販売' && ['取引開始', '入金待ち', '受注', '開始'].includes(data.status)) notice = '対象となる商品・発送資材の引当処理を行います。';
+        return { title: (transactionConfirmationSpec_(sheet)?.action || '取引') + (mode === 'new' ? '内容の確認' : '変更内容の確認'),
+            fields, notice, submit: mode === 'new' ? 'この内容で登録' : 'この内容で更新' };
+    }
+
+    function confirmTransaction_(sheet, mode, data, oldStatus = '', id = '') {
+        if (transactionConfirmationState_) return false;
+        if (!shouldConfirmTransaction_(currentMasters, sheet, mode, data.status, oldStatus)) return true;
+        const details = transactionConfirmationDetails_(sheet, mode, data, oldStatus, id);
+        const modal = document.getElementById?.('transaction-confirm-modal');
+        const get = key => document.getElementById('transaction-confirm-' + key);
+        // 古いHTMLが端末に残っている場合も、重要な確認を省略しない。
+        if (!modal || !get('fields') || !get('submit') || !get('back') || !get('close') || !get('title') || !get('notice')) {
+            return confirm(details.title + '\n\n' + details.fields.map(([label, value]) => label + '：' + value).join('\n') + '\n\n' + details.notice);
+        }
+        const previousFocus = document.activeElement;
+        get('title').textContent = details.title;
+        get('fields').replaceChildren();
+        for (const [label, value] of details.fields) {
+            const term = document.createElement('dt'), description = document.createElement('dd');
+            term.textContent = label; description.textContent = value;
+            get('fields').append(term, description);
+        }
+        get('notice').textContent = details.notice;
+        get('submit').textContent = details.submit;
+        get('submit').disabled = false;
+        return new Promise(resolve => {
+            transactionConfirmationState_ = { resolve };
+            const finish = accepted => {
+                if (!transactionConfirmationState_) return;
+                get('submit').disabled = true;
+                transactionConfirmationState_ = null;
+                modal.classList.remove('active');
+                modal.onclick = null;
+                for (const name of ['back', 'close', 'submit']) get(name).onclick = null;
+                document.removeEventListener('keydown', keydown, true);
+                if (previousFocus?.isConnected) previousFocus.focus();
+                resolve(accepted);
+            };
+            const keydown = event => {
+                if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); finish(false); }
+                if (event.key === 'Tab') {
+                    const controls = [get('close'), get('back'), get('submit')];
+                    const index = controls.indexOf(document.activeElement);
+                    if (event.shiftKey && index <= 0) { event.preventDefault(); controls.at(-1).focus(); }
+                    else if (!event.shiftKey && (index === controls.length - 1 || index < 0)) { event.preventDefault(); controls[0].focus(); }
+                }
+            };
+            get('submit').onclick = () => finish(true);
+            get('back').onclick = get('close').onclick = () => finish(false);
+            modal.onclick = event => { if (event.target === modal) finish(false); };
+            document.addEventListener('keydown', keydown, true);
+            modal.classList.add('active');
+            modal.querySelector('.modal-content').scrollTop = 0;
+            get('back').focus();
+        });
+    }
+
     function setupTransactionSubmitters() {
         const configs = [
             { btnId: 'buy-submit', sheet: 'T_仕入', fields: { date: 'purchase-date', status: 'buy-status-entry', vendor: 'buy-vendor', item: 'buy-item', price: 'buy-price', quantity: 'buy-quantity', payment: 'buy-payment', category: 'buy-category', note: 'buy-note' } },
@@ -2295,6 +2405,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!btn || btn.dataset.bound) return;
                 btn.dataset.bound = "true";
                 btn.addEventListener('click', async () => {
+                    if (btn.disabled || transactionSubmissionLocks_.has(conf.sheet)) return;
+                    transactionSubmissionLocks_.add(conf.sheet);
+                    try {
                     // ボタンIDによってステータスを上書き
                     const statusOverride = (btn.id === 'sale-submit-pending') ? { status: '入金待ち' } : {};
                     const payload = conf.extra ? { ...conf.extra, ...statusOverride } : { ...statusOverride };
@@ -2339,7 +2452,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                         return;
                     }
 
+                    const confirmation = confirmTransaction_(conf.sheet, 'new', payload);
+                    if (confirmation === false || (confirmation !== true && !await confirmation)) return;
                     await handleSubmission(btn, conf.sheet, payload);
+                    } finally {
+                        transactionSubmissionLocks_.delete(conf.sheet);
+                    }
                 });
             });
         });
@@ -3811,22 +3929,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function handleHistorySave(btn) {
+        if (btn.disabled || btn.dataset.confirming === 'true') return;
+        btn.dataset.confirming = 'true';
+        try {
         const originalHTML = btn.innerHTML;
         const id = btn.getAttribute('data-id');
         const card = btn.closest('.history-card');
         const statusSelect = card.querySelector('.status-select');
         const newStatus = statusSelect ? statusSelect.value : '';
         const oldStatus = btn.getAttribute('data-current-status') || '';
-
-        // ステータス変更時の確認 (提案33)
-        if (newStatus !== oldStatus) {
-            const criticalStatuses = ['完了', 'キャンセル', '入庫済み', '発送済み'];
-            if (criticalStatuses.includes(newStatus)) {
-                if (!confirm(`ステータスを「${newStatus}」に変更してもよろしいですか？`)) {
-                    return;
-                }
-            }
-        }
 
         // 追加: カード内の日付入力も取得
         const dateUpdates = {};
@@ -3883,6 +3994,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             'sales': 'T_販売'
         };
         const sheetName = sheetNameMap[currentTab];
+        let confirmationData = { item: btn.getAttribute('data-item'), quantity: btn.getAttribute('data-quantity'),
+            price: btn.getAttribute('data-price'), status: newStatus };
 
         if (sheetName) {
             const isPlanned = (newStatus === '購入予定');
@@ -3935,6 +4048,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 setLoading(false);
                 return;
             }
+            confirmationData = finalData;
         }
 
         // チェックボックスの取得
@@ -3944,6 +4058,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 dateUpdates[header] = chk.checked ? 1 : 0;
             }
         });
+
+        if (dateUpdates['管理対象'] !== undefined) confirmationData['管理対象'] = dateUpdates['管理対象'];
+        const confirmation = confirmTransaction_(sheetName, 'update', confirmationData, oldStatus, id);
+        if (confirmation === false || (confirmation !== true && !await confirmation)) return;
 
         btn.innerHTML = '<ion-icon name="sync-outline" class="spinning"></ion-icon>';
         btn.disabled = true;
@@ -4022,6 +4140,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.disabled = false;
         } finally {
             setLoading(false);
+        }
+        } finally {
+            delete btn.dataset.confirming;
         }
     }
 

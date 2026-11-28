@@ -1227,6 +1227,23 @@
         </div>
     </div>
 
+    <div id="transaction-confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="transaction-confirm-title">
+        <div class="modal-container glass-card">
+            <header class="modal-header">
+                <h2 id="transaction-confirm-title">登録内容の確認</h2>
+                <button id="transaction-confirm-close" class="icon-btn" type="button" aria-label="入力へ戻る">×</button>
+            </header>
+            <div class="modal-content">
+                <dl id="transaction-confirm-fields"></dl>
+                <p id="transaction-confirm-notice"></p>
+            </div>
+            <footer class="transaction-confirm-actions">
+                <button id="transaction-confirm-back" class="primary-btn outline-btn" type="button">戻る</button>
+                <button id="transaction-confirm-submit" class="primary-btn" type="button">この内容で登録</button>
+            </footer>
+        </div>
+    </div>
+
     <button id="scroll-to-top-btn" class="scroll-to-top-btn" title="先頭へ戻る">
         <ion-icon name="arrow-up-outline"></ion-icon>
     </button>

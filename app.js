@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const APP_VERSION = '2026.11.28.1'; // version.jsonからbuild.ps1で同期
+    const APP_VERSION = '2026.11.28.2'; // version.jsonからbuild.ps1で同期
     console.log('System initialization started... (' + APP_VERSION + ')');
 
     // ---- API Configuration ----
@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { name: '説明', type: 'textarea', visible: true, editable: true, required: false },
                 { name: '使用FLG', type: 'switch', visible: true, editable: true, required: true },
                 { name: '画像URL', visible: false, required: false },
-                { name: '保管場所', type: 'select', options: ['1_棚上：メイン', '2_棚中：サブ1', '3_棚下：梱包1', '4_押入上1：部品1', '5_押入上2：部品2', '6_押入上3：梱包2', '7_押入下1：サブ2', '8_押入下2：部品箱'], visible: true, editable: true, required: false },
+                { name: '保管場所', type: 'locations', options: ['1_棚上：メイン', '2_棚中：サブ1', '3_棚下：梱包1', '4_押入上1：部品1', '5_押入上2：部品2', '6_押入上3：梱包2', '7_押入下1：サブ2', '8_押入下2：部品箱'], visible: true, editable: true, required: false },
                 { name: 'QR/バーコード', type: 'text', visible: true, editable: true, required: false },
                 { name: '販売単価', type: 'number', visible: true, editable: true, required: false }
             ]
@@ -2728,7 +2728,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div class="card-sub-info">
                                 ${itemID ? `<span class="id-badge">${escapeHtml(itemID)}</span>` : ''}
                                 ${barcode ? `<span class="barcode-badge"><ion-icon name="barcode-outline"></ion-icon>${escapeHtml(barcode)}</span>` : ''}
-                                ${location ? location.split(/[／/，,、\s]+/).filter(s => s).map(loc => `<span class="location-badge"><ion-icon name="location-outline"></ion-icon>${escapeHtml(loc)}</span>`).join('') : ''}
+                                ${location ? parseStorageLocations_(location).map(loc => `<span class="location-badge"><ion-icon name="location-outline"></ion-icon>${escapeHtml(loc)}</span>`).join('') : ''}
                                 ${lastStocktakeDate ? `前回: ${lastStocktakeDate.toLocaleDateString()} ` : ''}
                                 ${isRecent ? `<span class="stocktake-done-badge"><ion-icon name="checkmark"></ion-icon>完了</span>` : ''}
                             </div>
@@ -2823,7 +2823,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div class="card-sub-info">
                                 ${itemID ? `<span class="id-badge">${escapeHtml(itemID)}</span>` : ''}
                                 ${barcode ? `<span class="barcode-badge"><ion-icon name="barcode-outline"></ion-icon>${escapeHtml(barcode)}</span>` : ''}
-                                ${location ? location.split(/[／/，,、\s]+/).filter(s => s).map(loc => `<span class="location-badge"><ion-icon name="location-outline"></ion-icon>${escapeHtml(loc)}</span>`).join('') : ''}
+                                ${location ? parseStorageLocations_(location).map(loc => `<span class="location-badge"><ion-icon name="location-outline"></ion-icon>${escapeHtml(loc)}</span>`).join('') : ''}
                             </div>
                         </div>
                         <div class="status-icon-wrap">
@@ -5160,7 +5160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    async function openMasterEditor(masterKey, masterTitle) {
+    async function openMasterEditor(masterKey, masterTitle, refreshLocations = false) {
         const selectView = document.getElementById('master-select-view');
         const editorView = document.getElementById('master-editor-view');
         const backBtn = document.getElementById('settings-back-btn');
@@ -5193,6 +5193,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 headers.forEach((h, i) => obj[h] = row[i]);
                 return obj;
             });
+            if (masterKey === 'M_商品' && refreshLocations) syncProductLocations_(data);
 
             // ヘッダー生成
             const schema = MASTER_SCHEMAS[masterKey];
@@ -5317,6 +5318,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function parseStorageLocations_(value, options = []) {
+        if (!options.length && typeof MASTER_SCHEMAS !== 'undefined') {
+            options = MASTER_SCHEMAS['M_商品'].fields.find(field => field.name === '保管場所').options;
+        }
+        const chunks = String(value ?? '').split(/[／/，,、\r\n]+/).map(part => part.trim()).filter(Boolean);
+        return [...new Set(chunks.flatMap(part => {
+            const words = part.split(/\s+/);
+            // 既存の空白区切り候補も読み取る。候補外の名前に含まれる空白は保持する。
+            return words.length > 1 && words.every(word => options.includes(word)) ? words : [part];
+        }))];
+    }
+
+    function syncProductLocations_(products) {
+        const locations = new Map(products.map(product => [product['品名'], product['保管場所'] || '']));
+        const existing = currentMasters['M_商品'] || [];
+        existing.forEach(product => {
+            if (locations.has(product['品名'])) product['保管場所'] = locations.get(product['品名']);
+        });
+        const names = new Set(existing.map(product => product['品名']));
+        currentMasters['M_商品'] = existing.concat(products.filter(product =>
+            !names.has(product['品名']) && (product['使用FLG'] == 1 || product['使用FLG'] === true)));
+        (currentMasters['T_在庫集計'] || []).forEach(row => {
+            if (locations.has(row['品名'])) row['保管場所'] = locations.get(row['品名']);
+        });
+        const raw = lastRawData['T_在庫集計'];
+        const locationColumn = raw?.[0]?.indexOf('保管場所') ?? -1;
+        const nameColumn = raw?.[0]?.indexOf('品名') ?? -1;
+        if (locationColumn >= 0 && nameColumn >= 0) raw.slice(1).forEach(row => {
+            if (locations.has(row[nameColumn])) row[locationColumn] = locations.get(row[nameColumn]);
+        });
+        saveMastersToCache(currentMasters);
+        if (!isStocktakeMode) applyStockFilters();
+    }
+
     function showMasterEntryModal(masterKey, keys, rowData) {
         const modal = document.getElementById('master-edit-modal');
         const fields = document.getElementById('master-edit-fields');
@@ -5349,7 +5384,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             let inputHtml = '';
             const type = fieldConfig ? fieldConfig.type : (typeof value === 'number' ? 'number' : 'text');
 
-            if (type === 'switch') {
+            if (type === 'locations') {
+                const options = fieldConfig.options || [];
+                const selected = parseStorageLocations_(value, options);
+                const choices = [...new Set([...options, ...selected])];
+                inputHtml = `<div role="group" aria-label="${escapeHtml(key)}" style="min-width:0;">${choices.map(location => `
+                    <label style="display:flex; align-items:center; gap:10px; padding:8px 0; margin:0; font-size:inherit; overflow-wrap:anywhere;">
+                        <input type="checkbox" name="${escapeHtml(key)}" value="${escapeHtml(location)}" ${selected.includes(location) ? 'checked' : ''} ${!isEditable ? 'disabled' : ''} style="width:20px; min-width:20px; height:20px; margin:0; flex:0 0 20px;">
+                        <span>${escapeHtml(location)}${options.includes(location) ? '' : '（現在の登録値）'}</span>
+                    </label>`).join('')}</div>`;
+            } else if (type === 'switch') {
                 const checked = (value == 1 || value === true) ? 'checked' : '';
                 inputHtml = `
                     <div style="display:flex; align-items:center; gap:10px; padding:10px 0;">
@@ -5421,7 +5465,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const type = fieldConfig ? fieldConfig.type : 'text';
                 let value = '';
 
-                if (type === 'switch') {
+                if (type === 'locations') {
+                    value = [...new Set(Array.from(form.querySelectorAll(`input[name="${key}"]:checked`), input => input.value))].join(',');
+                } else if (type === 'switch') {
                     const checkbox = form.querySelector(`input[name="${key}"]`);
                     value = checkbox.checked ? 1 : 0;
                 } else {
@@ -5478,7 +5524,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (res.status === 'success') {
                     showToast('保存しました');
                     modal.classList.remove('active');
-                    openMasterEditor(masterKey, document.getElementById('settings-title').textContent);
+                    await openMasterEditor(masterKey, document.getElementById('settings-title').textContent, masterKey === 'M_商品');
                 } else throw new Error(res.message);
             } catch (err) {
                 showToast('保存失敗: ' + err.message, 'error');

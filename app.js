@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const APP_VERSION = '2026.11.27.4'; // version.jsonからbuild.ps1で同期
+    const APP_VERSION = '2026.11.28.1'; // version.jsonからbuild.ps1で同期
     console.log('System initialization started... (' + APP_VERSION + ')');
 
     // ---- API Configuration ----
@@ -2562,7 +2562,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const processed = processClientData(lastRawData);
                     lastHistoryData = processed;
                     renderAllHistory(processed);
-                    refreshInventoryUI(); // 在庫一覧も更新
+                    if (sheet === 'T_仕入' && hData.rawData?.['T_在庫集計']) {
+                        syncShippingInventory_(hData.rawData['T_在庫集計']);
+                    } else {
+                        refreshInventoryUI(); // 在庫一覧も更新
+                    }
                 } else {
                     // 最終手段
                     await fetchHistory(refreshScope);
@@ -3945,7 +3949,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         btn.disabled = true;
         setLoading(true, 'データを更新中...');
 
-        const refreshScope = id.startsWith('A') ? 'purchase' :
+        const refreshScope = (id.startsWith('P') || id.startsWith('A')) ? 'purchase' :
             id.startsWith('E') ? 'expense' :
                 id.startsWith('M') ? 'manufacturing' :
                     id.startsWith('S') ? 'sales' : 'all';
@@ -3999,7 +4003,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const processed = processClientData(lastRawData);
                     lastHistoryData = processed;
                     renderAllHistory(processed);
-                    refreshInventoryUI(); // 在庫一覧も更新
+                    if ((id.startsWith('P') || id.startsWith('A')) && hData.rawData?.['T_在庫集計']) {
+                        syncShippingInventory_(hData.rawData['T_在庫集計']);
+                    } else {
+                        refreshInventoryUI(); // 在庫一覧も更新
+                    }
                 } else {
                     // フォールバック（少し待ってから再読み込み）
                     setTimeout(() => fetchHistory(refreshScope), 1000);
